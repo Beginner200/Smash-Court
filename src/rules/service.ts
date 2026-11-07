@@ -9,59 +9,72 @@ import { serviceCourtForScore } from "./scoring.js";
 
 /** BWF Laws 1.1, 9.1.1–9.1.9, 10.1 and 11.1. */
 export function evaluateService(observation: ServiceObservation): ServiceEvaluation {
-  // Law 14.2.2 takes precedence when both server and receiver are faulted in service.
-  if (observation.receiverAlsoFaulted) {
-    return { kind: "LET", lawRef: "14.2.2", reason: "Both server and receiver faulted during service." };
-  }
-  // Laws 9.4 and 14.2.1: serving before the receiver is ready is a let.
+  // BWF Law 9.4 / 14.2.1: a serve delivered before receiver readiness is a let.
   if (!observation.receiverReady) {
     return { kind: "LET", lawRef: "14.2.1", reason: "Receiver was not ready." };
   }
-  if (observation.undueDelayBy) {
-    return { kind: "FAULT", against: observation.undueDelayBy, lawRef: "9.1.1", reason: `Undue delay by the ${observation.undueDelayBy} once both sides were ready.` };
-  }
+
+  let serverFault: { lawRef: string; reason: string } | null = null;
+  let receiverFault: { lawRef: string; reason: string } | null = null;
+  const setServerFault = (lawRef: string, reason: string) => {
+    serverFault ??= { lawRef, reason };
+  };
+  const setReceiverFault = (lawRef: string, reason: string) => {
+    receiverFault ??= { lawRef, reason };
+  };
+
+  // BWF Law 9.1.1: either side may cause undue delay once both are ready.
+  if (observation.undueDelayBy === "server") setServerFault("9.1.1", "Server caused undue delay once both sides were ready.");
+  if (observation.undueDelayBy === "receiver") setReceiverFault("9.1.1", "Receiver caused undue delay once both sides were ready.");
+  // BWF Law 9.1.2: delay after the server's backward racket-head movement is a server fault.
   if (observation.delayAfterBackwardMovement) {
-    return { kind: "FAULT", against: "server", lawRef: "9.1.2", reason: "Delay after completion of the server's backward racket-head movement." };
+    setServerFault("9.1.2", "Delay after completion of the server's backward racket-head movement.");
   }
-  const serverCourtFault = !observation.serverFeetInsideServiceCourt || observation.serverFeetTouchingLine;
-  const receiverCourtFault = !observation.receiverFeetInsideServiceCourt || observation.receiverFeetTouchingLine;
-  const serverFootFault = !observation.serverFeetStationary || !observation.serverFeetInContact;
-  const receiverFootFault = !observation.receiverFeetStationary || !observation.receiverFeetInContact;
-  if (observation.receiverAlsoFaulted ||
-      (serverCourtFault || serverFootFault) && (receiverCourtFault || receiverFootFault)) {
-    return { kind: "LET", lawRef: "14.2.2", reason: "Both server and receiver were faulted during service." };
+
+  // BWF Laws 9.1.3–9.1.4: server and receiver are judged independently.
+  if (!observation.serverFeetInsideServiceCourt || observation.serverFeetTouchingLine) {
+    setServerFault("9.1.3", "Server was outside the service court or touching a boundary line.");
   }
-  if (serverCourtFault) {
-    return { kind: "FAULT", against: "server", lawRef: "9.1.3", reason: "Server was outside the service court or touching a boundary line." };
+  if (!observation.receiverFeetInsideServiceCourt || observation.receiverFeetTouchingLine) {
+    setReceiverFault("9.1.3", "Receiver was outside the service court or touching a boundary line.");
   }
-  if (receiverCourtFault) {
-    return { kind: "FAULT", against: "receiver", lawRef: "9.1.3", reason: "Receiver was outside the service court or touching a boundary line." };
+  if (!observation.serverFeetStationary || !observation.serverFeetInContact) {
+    setServerFault("9.1.4", "Server's feet were not stationary and in contact with the court.");
   }
-  if (serverFootFault) {
-    return { kind: "FAULT", against: "server", lawRef: "9.1.4", reason: "Server's feet were not stationary and in contact with the court." };
+  if (!observation.receiverFeetStationary || !observation.receiverFeetInContact) {
+    setReceiverFault("9.1.4", "Receiver's feet were not stationary and in contact with the court.");
   }
-  if (receiverFootFault) {
-    return { kind: "FAULT", against: "receiver", lawRef: "9.1.4", reason: "Receiver's feet were not stationary and in contact with the court." };
-  }
+
+  // BWF Laws 9.1.5–9.1.9: service delivery/flight requirements apply to server.
   if (!observation.baseStruckFirst) {
-    return { kind: "FAULT", against: "server", lawRef: "9.1.5", reason: "The racket did not initially hit the base of the shuttle." };
+    setServerFault("9.1.5", "The racket did not initially hit the base of the shuttle.");
   }
   // Law 9.1.6: the whole shuttle must be strictly below 1.15 m at impact.
   if (!(observation.shuttleTopHeightM < 1.15)) {
-    return { kind: "FAULT", against: "server", lawRef: "9.1.6", reason: "Whole shuttle was not below 1.15 metres at impact." };
+    setServerFault("9.1.6", "Whole shuttle was not below 1.15 metres at impact.");
   }
   if (!observation.continuousForwardMovement) {
-    return { kind: "FAULT", against: "server", lawRef: "9.1.7", reason: "Racket did not continue forwards from service start until delivery." };
+    setServerFault("9.1.7", "Racket did not continue forwards from service start until delivery.");
   }
   if (!observation.flightUpwards || !observation.wouldLandInCorrectServiceCourt) {
-    return { kind: "FAULT", against: "server", lawRef: "9.1.8", reason: "Service flight was not upwards over the net toward the correct diagonal service court." };
+    setServerFault("9.1.8", "Service flight was not upwards over the net toward the correct diagonal service court.");
   }
   if (observation.missedShuttle) {
-    return { kind: "FAULT", against: "server", lawRef: "9.1.9", reason: "Server missed the shuttle while attempting to serve." };
+    setServerFault("9.1.9", "Server missed the shuttle while attempting to serve.");
+  }
+
+  // BWF Law 14.2.2: simultaneous server and receiver faults are a let.
+  if (serverFault && receiverFault) {
+    return { kind: "LET", lawRef: "14.2.2", reason: "Both server and receiver were faulted during service." };
+  }
+  if (receiverFault) {
+    return { kind: "FAULT", against: "receiver", ...receiverFault };
+  }
+  if (serverFault) {
+    return { kind: "FAULT", against: "server", ...serverFault };
   }
   return { kind: "LEGAL", lawRef: "9.1", reason: "Correct service" };
 }
-
 export const COURT_LENGTH_M = 13.4;
 export const DOUBLES_WIDTH_M = 6.1;
 export const SINGLES_WIDTH_M = 5.18;
