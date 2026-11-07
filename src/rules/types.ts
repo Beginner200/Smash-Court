@@ -1,7 +1,7 @@
 /**
  * Domain types for the Smash Court 3D rules engine.
- * Ruleset references in this package target the BWF Laws effective on
- * 4 November 2026 (the 2025 Laws, amended 26 April 2025).
+ * Ruleset references in this package target the BWF Laws effective as of
+ * 7 November 2026 (the 2025 Laws, amended 26 April 2025).
  * Official law index: https://worldbadminton.com/laws/rules_2025.htm
  */
 
@@ -140,6 +140,17 @@ export interface ServiceCourtError {
   kind: "wrong-server" | "wrong-court" | "wrong-receiver";
   actualPlayerId: PlayerId;
   description: string;
+}
+
+export interface ServiceCourtSnapshot {
+  expectedServerId: PlayerId;
+  actualServerId: PlayerId;
+  expectedReceiverId: PlayerId;
+  actualReceiverId: PlayerId;
+  expectedServerCourt: ServiceCourt;
+  actualServerCourt: ServiceCourt;
+  expectedReceiverCourt: ServiceCourt;
+  actualReceiverCourt: ServiceCourt;
 }
 
 export interface ServiceCourtCorrection {
