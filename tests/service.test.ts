@@ -8,7 +8,7 @@ const legal: ServiceObservation = {
   serverFeetInsideServiceCourt: true, serverFeetTouchingLine: false,
   receiverFeetStationary: true, receiverFeetInContact: true,
   receiverFeetInsideServiceCourt: true, receiverFeetTouchingLine: false,
-  baseStruckFirst: true, releasedWithoutSpin: true,
+  baseStruckFirst: true, inDiagonalOppositeCourts: true,
   continuousForwardMovement: true, flightUpwards: true,
   wouldLandInCorrectServiceCourt: true, missedShuttle: false,
   receiverReady: true
