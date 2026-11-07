@@ -7,6 +7,8 @@ import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simul
 import { chooseAiReturnPlan, createAiReturnState, getAiLandingTarget } from "./physics/ai.js";
 import { canPlayerHitShuttle } from "./physics/hit-detection.js";
 import { assessShotContact } from "./physics/contact-quality.js";
+import { createServeState, evaluateServeFlight, type ServingSide } from "./physics/serve.js";
+import { getServiceCourt } from "./rules/service.js";
 import { awardRallyPoint, createMatchScore, type MatchScoreState, type MatchSide } from "./rules/match-scoring.js";
 import "./style.css";
 
@@ -29,6 +31,7 @@ const opponentGamesReadout = document.querySelector<HTMLSpanElement>("#games-opp
 const matchMessage = document.querySelector<HTMLDivElement>("#match-message");
 const newMatchButton = document.querySelector<HTMLButtonElement>("#new-match");
 const nextRallyButton = document.querySelector<HTMLButtonElement>("#next-rally");
+const serveReadout = document.querySelector<HTMLDivElement>("#serve-readout");
 if (!mount) throw new Error("Missing #scene mount!.");
 if (!status) throw new Error("Missing #flight-status!.");
 if (!speedReadout) throw new Error("Missing #speed-readout.");
@@ -41,7 +44,7 @@ if (!shotReadout) throw new Error("Missing #shot-readout.");
 if (!contactReadout) throw new Error("Missing #contact-readout.");
 if (!practiceAssist) throw new Error("Missing #practice-assist.");
 if (!opponentReadout) throw new Error("Missing #opponent-readout.");
-if (!playerScoreReadout || !opponentScoreReadout || !playerGamesReadout || !opponentGamesReadout || !matchMessage || !newMatchButton || !nextRallyButton) throw new Error("Missing match scoreboard controls.");
+if (!playerScoreReadout || !opponentScoreReadout || !playerGamesReadout || !opponentGamesReadout || !matchMessage || !newMatchButton || !nextRallyButton || !serveReadout) throw new Error("Missing match scoreboard controls.");
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x07120f);
@@ -209,9 +212,20 @@ let aiRallyIndex = 0;
 let aiTarget: THREE.Vector3 | null = null;
 let matchScore: MatchScoreState = createMatchScore();
 let pointResolved = false;
+let servingSide: ServingSide = "player";
+let rallyStarted = false;
+let serveInProgress = false;
 let rallyState: "ready" | "player-flight" | "ai-flight" | "point-over" = "ready";
 const clock = new THREE.Clock();
 
+function updateServeReadout() {
+  const sideName = servingSide === "player" ? "YOU SERVE" : "AI SERVES";
+  const score = matchScore.points[servingSide];
+  const court = getServiceCourt(score).toUpperCase();
+  serveReadout!.textContent = `${sideName} · ${court} SERVICE COURT · SERVER SCORE ${score}`;
+  launchButton!.disabled = servingSide !== "player" || rallyStarted || !!matchScore.winner || pointResolved;
+  launchButton!.textContent = servingSide === "player" ? "Serve ↗" : "AI will serve";
+}
 function updateScoreboard() {
   playerScoreReadout!.textContent = String(matchScore.points.player);
   opponentScoreReadout!.textContent = String(matchScore.points.opponent);
@@ -226,6 +240,10 @@ function awardPoint(winner: MatchSide, reason: string) {
   playing = false;
   matchScore = awardRallyPoint(matchScore, winner);
   updateScoreboard();
+  servingSide = winner;
+  rallyStarted = false;
+  serveInProgress = false;
+  updateServeReadout();
   if (matchScore.winner) {
     matchMessage!.textContent = `${matchScore.winner === "player" ? "YOU WIN" : "AI WINS"} THE MATCH · ${reason}`;
     status!.textContent = matchMessage!.textContent;
@@ -240,9 +258,13 @@ function awardPoint(winner: MatchSide, reason: string) {
 function newMatch() {
   matchScore = createMatchScore();
   pointResolved = false;
+  servingSide = "player";
+  rallyStarted = false;
+  serveInProgress = false;
   nextRallyButton.disabled = true;
   rallyState = "ready";
   updateScoreboard();
+  updateServeReadout();
   matchMessage!.textContent = "Best of 3 · First to 21, win by 2 (cap 30)";
   clearTrajectory();
   player.position.set(0,0,4.8);
@@ -251,6 +273,7 @@ function newMatch() {
 function clearTrajectory() {
   if(trajectoryLine) { scene.remove(trajectoryLine); trajectoryLine.geometry.dispose(); trajectoryLine=null; }
   shuttle.visible=false; result=null; playing=false; lastElapsed=0;
+  serveInProgress=false;
   aiTarget=null; aiReturnAttempted=false; flightSource="player";
   opponentReadout!.textContent="Waiting for your shot";
   status!.textContent="Ready to launch";
@@ -304,6 +327,7 @@ function makeShot(type: ShotType = "clear") {
   if (matchScore.winner || pointResolved) return;
   const isReturn = playing && flightSource === "ai";
   if (playing && !isReturn) return;
+  if (!isReturn && !rallyStarted) return;
 
   let launchPosition: THREE.Vector3;
   if (isReturn) {
@@ -340,6 +364,26 @@ function makeShot(type: ShotType = "clear") {
     "player",
   );
 }
+function makeServe(server: ServingSide) {
+  if (playing || pointResolved || rallyStarted || matchScore.winner || server !== servingSide) return;
+  const serverScore = matchScore.points[server];
+  const initial = createServeState(server, serverScore);
+  const mode: MatchMode = modeSelect!.value === "doubles" ? "doubles" : "singles";
+  const check = evaluateServeFlight(initial, server, serverScore, mode);
+  if (check.evaluation.kind !== "LEGAL") {
+    const receiver: MatchSide = server === "player" ? "opponent" : "player";
+    status!.textContent = `SERVICE FAULT · ${check.evaluation.reason}`;
+    awardPoint(receiver, `Service fault · ${check.evaluation.reason}`);
+    return;
+  }
+  const court = getServiceCourt(serverScore).toUpperCase();
+  startFlight(initial, server === "player" ? "Your serve" : "AI serve", `Legal diagonal serve from the ${court.toLowerCase()} service court.`, server === "player" ? "player" : "ai");
+  serveInProgress = true;
+  rallyStarted = true;
+  serveReadout!.textContent = `${server === "player" ? "YOUR SERVE" : "AI SERVE"} · ${court} SERVICE COURT`;
+  status!.textContent = `${server === "player" ? "YOUR" : "AI"} SERVE · IN PLAY`;
+  updateServeReadout();
+}
 function makeAiReturn() {
   const difficulty = difficultySelect!.value;
   const contactPosition = { x: opponent.position.x, y: 1.55, z: Math.min(-0.65, opponent.position.z + 0.35) };
@@ -357,7 +401,7 @@ function resize() {
   camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h,false);
 }
 const resizeObserver=new ResizeObserver(resize); resizeObserver.observe(mount); resize();
-launchButton.addEventListener("click",()=>makeShot("clear"));
+launchButton.addEventListener("click",()=>makeServe("player"));
 document.querySelectorAll<HTMLButtonElement>("[data-shot]").forEach(button => {
   button.addEventListener("click", () => {
     const shot = button.dataset.shot as ShotType | undefined;
@@ -374,14 +418,19 @@ nextRallyButton.addEventListener("click",()=>{
   if (!pointResolved || matchScore.winner) return;
   clearTrajectory();
   pointResolved = false;
+  rallyStarted = false;
+  serveInProgress = false;
   rallyState = "ready";
   player.position.set(0,0,4.8);
   opponent.position.set(0,0,-4.8);
   matchMessage!.textContent = `Game ${matchScore.gameNumber} · Start the next rally`;
   status!.textContent = "Ready · serve to begin the next rally";
   nextRallyButton.disabled = true;
+  updateServeReadout();
+  if (servingSide === "opponent") makeServe("opponent");
 });
 updateScoreboard();
+updateServeReadout();
 modeSelect!.addEventListener("change",()=>{ clearTrajectory(); });
 practiceAssist!.addEventListener("change", () => {
   contactReadout!.textContent = practiceAssist!.checked ? "Practice assist ON" : "Standard contact";
@@ -432,6 +481,7 @@ function render() {
   if(playing && result) {
     const flightResult = result;
     const activeSource = flightSource;
+    const flightWasServe = serveInProgress;
     const elapsed=clock.elapsedTime-animationStart;
     const sampleIndex=Math.min(flightResult.samples.length-1,Math.floor(elapsed/Math.max(flightResult.durationSeconds,0.001)*(flightResult.samples.length-1)));
     const sample=flightResult.samples[sampleIndex];
@@ -473,13 +523,13 @@ function render() {
         if (activeSource === "player") {
           const validOpponentLanding = flightResult.end === "ground" && !!flightResult.landing && flightResult.landing.z < 0;
           if (validOpponentLanding) {
-            awardPoint("player", aiReturnAttempted ? "AI could not reach the shuttle" : "AI failed to return");
+            awardPoint("player", flightWasServe ? "AI failed to receive the serve" : aiReturnAttempted ? "AI could not reach the shuttle" : "AI failed to return");
           } else {
             awardPoint("opponent", flightResult.end === "net" ? "Your shot hit the net" : "Your shot landed out");
           }
         } else {
           const validPlayerLanding = flightResult.end === "ground" && !!flightResult.landing && flightResult.landing.z > 0;
-          awardPoint(validPlayerLanding ? "opponent" : "player", validPlayerLanding ? "You did not return the shuttle" : "AI return was a fault");
+          awardPoint(validPlayerLanding ? "opponent" : "player", validPlayerLanding ? (flightWasServe ? "You failed to receive the serve" : "You did not return the shuttle") : "AI return was a fault");
         }
       }
     }
