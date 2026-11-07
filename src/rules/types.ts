@@ -112,7 +112,7 @@ export interface ServiceObservation {
   receiverFeetInsideServiceCourt: boolean;
   receiverFeetTouchingLine: boolean;
   baseStruckFirst: boolean;
-  releasedWithoutSpin: boolean;
+  inDiagonalOppositeCourts: boolean;
   continuousForwardMovement: boolean;
   flightUpwards: boolean;
   wouldLandInCorrectServiceCourt: boolean;
@@ -120,6 +120,7 @@ export interface ServiceObservation {
   receiverReady: boolean;
   receiverAlsoFaulted?: boolean;
   undueDelay?: boolean;
+  delayAfterBackwardMovement?: boolean;
 }
 
 export type ServiceEvaluation =
