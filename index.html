@@ -47,8 +47,7 @@
         </label>
       </section>
       <div class="legend"><span><i class="dot"></i>Simulated flight path</span><span><i class="dot white"></i>Court & service lines</span><span><i class="dot gold"></i>Shuttlecock model</span></div>
-      <footer class="note">Scoring: each completed rally awards one point. Games are first to 21 with a two-point lead, capped at 30; the match is best of three. Rally resolution is currently automated after the AI return, pending manual shuttle-hit controls. <br />\n      <footer class="note">Physics note: quadratic drag is integrated with fixed 1/240-second steps for deterministic replay. The aerodynamic coefficient is an initial tuning value, not a claim of laboratory-calibrated shuttle data. Court line decisions reuse the Phase 1 rules module.</footer>
-    </main>
+      <footer class="note">Scoring: each completed rally awards one point. Games are first to 21 with a two-point lead, capped at 30; the match is best of three. Rally resolution is currently automated after the AI return, pending manual shuttle-hit controls. Physics uses fixed 1/240-second steps for deterministic replay; aerodynamic values are initial tuning estimates, not laboratory-calibrated data. Court line decisions reuse the Phase 1 rules module.</footer>\n    </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>
