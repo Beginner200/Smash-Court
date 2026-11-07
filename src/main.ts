@@ -24,6 +24,7 @@ const playerGamesReadout = document.querySelector<HTMLSpanElement>("#games-playe
 const opponentGamesReadout = document.querySelector<HTMLSpanElement>("#games-opponent");
 const matchMessage = document.querySelector<HTMLDivElement>("#match-message");
 const newMatchButton = document.querySelector<HTMLButtonElement>("#new-match");
+const nextRallyButton = document.querySelector<HTMLButtonElement>("#next-rally");
 if (!mount) throw new Error("Missing #scene mount!.");
 if (!status) throw new Error("Missing #flight-status!.");
 if (!speedReadout) throw new Error("Missing #speed-readout.");
@@ -33,7 +34,7 @@ if (!launchButton) throw new Error("Missing #launch.");
 if (!resetButton) throw new Error("Missing #reset.");
 if (!shotReadout) throw new Error("Missing #shot-readout.");
 if (!opponentReadout) throw new Error("Missing #opponent-readout.");
-if (!playerScoreReadout || !opponentScoreReadout || !playerGamesReadout || !opponentGamesReadout || !matchMessage || !newMatchButton) throw new Error("Missing match scoreboard controls.");
+if (!playerScoreReadout || !opponentScoreReadout || !playerGamesReadout || !opponentGamesReadout || !matchMessage || !newMatchButton || !nextRallyButton) throw new Error("Missing match scoreboard controls.");
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x07120f);
@@ -128,6 +129,7 @@ let aiReturnAttempted = false;
 let aiTarget: THREE.Vector3 | null = null;
 let matchScore: MatchScoreState = createMatchScore();
 let pointResolved = false;
+let rallyState: "ready" | "player-flight" | "ai-flight" | "point-over" = "ready";
 const clock = new THREE.Clock();
 
 function updateScoreboard() {
@@ -139,6 +141,9 @@ function updateScoreboard() {
 function awardPoint(winner: MatchSide, reason: string) {
   if (pointResolved || matchScore.winner) return;
   pointResolved = true;
+  nextRallyButton.disabled = false;
+  rallyState = "point-over";
+  playing = false;
   matchScore = awardRallyPoint(matchScore, winner);
   updateScoreboard();
   if (matchScore.winner) {
@@ -155,14 +160,18 @@ function awardPoint(winner: MatchSide, reason: string) {
 function newMatch() {
   matchScore = createMatchScore();
   pointResolved = false;
+  nextRallyButton.disabled = true;
+  rallyState = "ready";
   updateScoreboard();
   matchMessage!.textContent = "Best of 3 · First to 21, win by 2 (cap 30)";
   clearTrajectory();
+  player.position.set(0,0,4.8);
+  opponent.position.set(0,0,-4.8);
 }
 function clearTrajectory() {
   if(trajectoryLine) { scene.remove(trajectoryLine); trajectoryLine.geometry.dispose(); trajectoryLine=null; }
   shuttle.visible=false; result=null; playing=false; lastElapsed=0;
-  aiTarget=null; aiReturnAttempted=false; flightSource="player"; pointResolved=false;
+  aiTarget=null; aiReturnAttempted=false; flightSource="player";
   opponentReadout!.textContent="Waiting for your shot";
   status!.textContent="Ready to launch";
   speedReadout!.textContent="—";
@@ -171,6 +180,7 @@ function clearTrajectory() {
 function startFlight(initial: ReturnType<typeof createShuttleState>, label: string, description: string, source: "player" | "ai") {
   clearTrajectory();
   flightSource=source;
+  rallyState = source === "player" ? "player-flight" : "ai-flight";
   const mode: MatchMode = modeSelect!.value === "doubles" ? "doubles" : "singles";
   const config = { ...DEFAULT_SHUTTLE_CONFIG, courtMode:mode };
   result = simulateTrajectory(initial,config);
@@ -196,7 +206,7 @@ function startFlight(initial: ReturnType<typeof createShuttleState>, label: stri
   playing=true;
 }
 function makeShot(type: ShotType = "clear") {
-  if (matchScore.winner) return;
+  if (matchScore.winner || pointResolved) return;
   const isReturn = playing && flightSource === "ai";
   if (playing && !isReturn) return;
 
@@ -230,11 +240,13 @@ function makeShot(type: ShotType = "clear") {
   );
 }
 function makeAiReturn() {
+  const aiShot = chooseAiReturnShot(player.position);
   const initial = createAiReturnState(
     { x: opponent.position.x, y: 1.55, z: Math.min(-0.65, opponent.position.z + 0.35) },
     player.position.x,
+    aiShot,
   );
-  startFlight(initial, "AI return", "The opponent reached the shuttle and sent it back toward your side.", "ai");
+  startFlight(initial, `AI ${aiShot}`, `The opponent chose a ${aiShot} based on your court position.`, "ai");
 }
 function magnitude(v: {x:number;y:number;z:number}) { return Math.hypot(v.x,v.y,v.z); }
 function resize() {
@@ -249,8 +261,23 @@ document.querySelectorAll<HTMLButtonElement>("[data-shot]").forEach(button => {
     if (shot && shot in SHOT_PROFILES) makeShot(shot);
   });
 });
-resetButton.addEventListener("click",clearTrajectory);
+resetButton.addEventListener("click",()=>{
+  if (playing && !pointResolved) awardPoint(flightSource === "ai" ? "player" : "opponent", "Rally reset");
+  clearTrajectory();
+});
 newMatchButton.addEventListener("click",newMatch);
+nextRallyButton.disabled = true;
+nextRallyButton.addEventListener("click",()=>{
+  if (!pointResolved || matchScore.winner) return;
+  clearTrajectory();
+  pointResolved = false;
+  rallyState = "ready";
+  player.position.set(0,0,4.8);
+  opponent.position.set(0,0,-4.8);
+  matchMessage!.textContent = `Game ${matchScore.gameNumber} · Start the next rally`;
+  status!.textContent = "Ready · serve to begin the next rally";
+  nextRallyButton.disabled = true;
+});
 updateScoreboard();
 modeSelect!.addEventListener("change",()=>{ clearTrajectory(); });
 
@@ -260,6 +287,7 @@ function render() {
   controls.update();
   if(playing && result) {
     const flightResult = result;
+    const activeSource = flightSource;
     const elapsed=clock.elapsedTime-animationStart;
     const sampleIndex=Math.min(flightResult.samples.length-1,Math.floor(elapsed/Math.max(flightResult.durationSeconds,0.001)*(flightResult.samples.length-1)));
     const sample=flightResult.samples[sampleIndex];
@@ -268,7 +296,8 @@ function render() {
       const velocity=new THREE.Vector3(sample.velocity.x,sample.velocity.y,sample.velocity.z);
       if(velocity.lengthSq()>0.0001) shuttle.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),velocity.normalize());
     }
-    if(flightSource === "player" && aiTarget && !aiReturnAttempted) {
+    let replacedFlight = false;
+    if(activeSource === "player" && aiTarget && !aiReturnAttempted) {
       const target = new THREE.Vector3(aiTarget.x,0,aiTarget.z);
       const distance = opponent.position.distanceTo(target);
       const step = 6.5 * Math.max(delta,0);
@@ -279,29 +308,28 @@ function render() {
         if(opponent.position.distanceTo(target) <= 1.15) {
           opponentReadout!.textContent="AI reached it · returning…";
           makeAiReturn();
+          replacedFlight = true;
         } else {
           opponentReadout!.textContent="AI missed the shuttle";
-          status!.textContent="AI MISSED · POINT TO PLAYER";
+          status!.textContent="AI MISSED · WAITING FOR LANDING";
         }
       }
     }
-    if(elapsed>=flightResult.durationSeconds) {
+    // A newly launched AI return replaces the old player flight; never score the old flight.
+    if(!replacedFlight && elapsed>=flightResult.durationSeconds) {
       playing=false;
       if (!pointResolved) {
-        if (flightSource === "player") {
+        if (activeSource === "player") {
           const validOpponentLanding = flightResult.end === "ground" && !!flightResult.landing && flightResult.landing.z < 0;
-          if (validOpponentLanding && aiReturnAttempted && opponentReadout!.textContent === "AI missed the shuttle") {
-            awardPoint("player", "AI could not reach the shuttle");
-          } else if (!validOpponentLanding) {
+          if (validOpponentLanding) {
+            awardPoint("player", aiReturnAttempted ? "AI could not reach the shuttle" : "AI failed to return");
+          } else {
             awardPoint("opponent", flightResult.end === "net" ? "Your shot hit the net" : "Your shot landed out");
           }
         } else {
           const validPlayerLanding = flightResult.end === "ground" && !!flightResult.landing && flightResult.landing.z > 0;
           awardPoint(validPlayerLanding ? "opponent" : "player", validPlayerLanding ? "You did not return the shuttle" : "AI return was a fault");
         }
-      }
-      if (!pointResolved) {
-        awardPoint(flightSource === "ai" ? "player" : "opponent", "Rally ended");
       }
     }
   }
