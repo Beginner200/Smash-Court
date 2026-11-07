@@ -127,7 +127,36 @@ let aiReturnAttempted = false;
 let aiTarget: THREE.Vector3 | null = null;
 const clock = new THREE.Clock();
 
-function updateScoreboard() {\n  playerScoreReadout!.textContent = String(matchScore.points.player);\n  opponentScoreReadout!.textContent = String(matchScore.points.opponent);\n  playerGamesReadout!.textContent = String(matchScore.games.player);\n  opponentGamesReadout!.textContent = String(matchScore.games.opponent);\n}\nfunction awardPoint(winner: MatchSide, reason: string) {\n  if (pointResolved || matchScore.winner) return;\n  pointResolved = true;\n  matchScore = awardRallyPoint(matchScore, winner);\n  updateScoreboard();\n  if (matchScore.winner) {\n    matchMessage!.textContent = `${matchScore.winner === "player" ? "YOU WIN" : "AI WINS"} THE MATCH · ${reason}`;\n    status!.textContent = matchMessage!.textContent;\n  } else if (matchScore.points.player === 0 && matchScore.points.opponent === 0 && (matchScore.games.player + matchScore.games.opponent) > 0) {\n    matchMessage!.textContent = `Game ${matchScore.gameNumber} · ${winner === "player" ? "You" : "AI"} won the previous game`;\n    status!.textContent = `GAME ${matchScore.gameNumber - 1} WON`;\n  } else {\n    matchMessage!.textContent = `${winner === "player" ? "Point to you" : "Point to AI"} · ${reason}`;\n    status!.textContent = matchMessage!.textContent;\n  }\n}\nfunction newMatch() {\n  matchScore = createMatchScore();\n  pointResolved = false;\n  updateScoreboard();\n  matchMessage!.textContent = "Best of 3 · First to 21, win by 2 (cap 30)";\n  clearTrajectory();\n}\nfunction clearTrajectory() {
+function updateScoreboard() {
+  playerScoreReadout!.textContent = String(matchScore.points.player);
+  opponentScoreReadout!.textContent = String(matchScore.points.opponent);
+  playerGamesReadout!.textContent = String(matchScore.games.player);
+  opponentGamesReadout!.textContent = String(matchScore.games.opponent);
+}
+function awardPoint(winner: MatchSide, reason: string) {
+  if (pointResolved || matchScore.winner) return;
+  pointResolved = true;
+  matchScore = awardRallyPoint(matchScore, winner);
+  updateScoreboard();
+  if (matchScore.winner) {
+    matchMessage!.textContent = `${matchScore.winner === "player" ? "YOU WIN" : "AI WINS"} THE MATCH · ${reason}`;
+    status!.textContent = matchMessage!.textContent;
+  } else if (matchScore.points.player === 0 && matchScore.points.opponent === 0 && (matchScore.games.player + matchScore.games.opponent) > 0) {
+    matchMessage!.textContent = `Game ${matchScore.gameNumber} · ${winner === "player" ? "You" : "AI"} won the previous game`;
+    status!.textContent = `GAME ${matchScore.gameNumber - 1} WON`;
+  } else {
+    matchMessage!.textContent = `${winner === "player" ? "Point to you" : "Point to AI"} · ${reason}`;
+    status!.textContent = matchMessage!.textContent;
+  }
+}
+function newMatch() {
+  matchScore = createMatchScore();
+  pointResolved = false;
+  updateScoreboard();
+  matchMessage!.textContent = "Best of 3 · First to 21, win by 2 (cap 30)";
+  clearTrajectory();
+}
+function clearTrajectory() {
   if(trajectoryLine) { scene.remove(trajectoryLine); trajectoryLine.geometry.dispose(); trajectoryLine=null; }
   shuttle.visible=false; result=null; playing=false; lastElapsed=0;
   aiTarget=null; aiReturnAttempted=false; flightSource="player"; pointResolved=false;
@@ -163,7 +192,8 @@ function startFlight(initial: ReturnType<typeof createShuttleState>, label: stri
   animationStart=clock.elapsedTime;
   playing=true;
 }
-function makeShot(type: ShotType = "clear") {\n  if (playing || matchScore.winner || pointResolved) return;
+function makeShot(type: ShotType = "clear") {
+  if (playing || matchScore.winner || pointResolved) return;
   const initial = createShotState(type, {
     x: player.position.x,
     y: 1.25,
@@ -191,7 +221,9 @@ document.querySelectorAll<HTMLButtonElement>("[data-shot]").forEach(button => {
     if (shot && shot in SHOT_PROFILES) makeShot(shot);
   });
 });
-resetButton.addEventListener("click",clearTrajectory);\nnewMatchButton.addEventListener("click",newMatch);\nupdateScoreboard();
+resetButton.addEventListener("click",clearTrajectory);
+newMatchButton.addEventListener("click",newMatch);
+updateScoreboard();
 modeSelect!.addEventListener("change",()=>{ clearTrajectory(); });
 
 function render() {
@@ -227,8 +259,21 @@ function render() {
     }
     if(elapsed>=flightResult.durationSeconds) {
       playing=false;
-      if(flightSource === "player" && aiTarget && aiReturnAttempted && opponentReadout!.textContent !== "AI reached it · returning…") {
-        opponentReadout!.textContent="Ready for next rally";
+      if (!pointResolved) {
+        if (flightSource === "player") {
+          const validOpponentLanding = flightResult.end === "ground" && !!flightResult.landing && flightResult.landing.z < 0;
+          if (validOpponentLanding && aiReturnAttempted && opponentReadout!.textContent === "AI missed the shuttle") {
+            awardPoint("player", "AI could not reach the shuttle");
+          } else if (!validOpponentLanding) {
+            awardPoint("opponent", flightResult.end === "net" ? "Your shot hit the net" : "Your shot landed out");
+          }
+        } else {
+          const validPlayerLanding = flightResult.end === "ground" && !!flightResult.landing && flightResult.landing.z > 0;
+          awardPoint(validPlayerLanding ? "opponent" : "player", validPlayerLanding ? "You did not return the shuttle" : "AI return was a fault");
+        }
+      }
+      if (!pointResolved) {
+        awardPoint(flightSource === "ai" ? "player" : "opponent", "Rally ended");
       }
     }
   }
