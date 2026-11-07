@@ -14,6 +14,7 @@ const status = document.querySelector<HTMLDivElement>("#flight-status");
 const speedReadout = document.querySelector<HTMLDivElement>("#speed-readout");
 const timeReadout = document.querySelector<HTMLDivElement>("#time-readout");
 const modeSelect = document.querySelector<HTMLSelectElement>("#mode");
+const difficultySelect = document.querySelector<HTMLSelectElement>("#difficulty");
 const launchButton = document.querySelector<HTMLButtonElement>("#launch");
 const resetButton = document.querySelector<HTMLButtonElement>("#reset");
 const shotReadout = document.querySelector<HTMLDivElement>("#shot-readout");
@@ -30,6 +31,7 @@ if (!status) throw new Error("Missing #flight-status!.");
 if (!speedReadout) throw new Error("Missing #speed-readout.");
 if (!timeReadout) throw new Error("Missing #time-readout.");
 if (!modeSelect) throw new Error("Missing #mode.");
+if (!difficultySelect) throw new Error("Missing #difficulty.");
 if (!launchButton) throw new Error("Missing #launch.");
 if (!resetButton) throw new Error("Missing #reset.");
 if (!shotReadout) throw new Error("Missing #shot-readout.");
@@ -291,8 +293,13 @@ function makeShot(type: ShotType = "clear") {
   );
 }
 function makeAiReturn() {
+  const difficulty = difficultySelect!.value;
   const contactPosition = { x: opponent.position.x, y: 1.55, z: Math.min(-0.65, opponent.position.z + 0.35) };
   const plan = chooseAiReturnPlan(player.position, contactPosition, aiRallyIndex++);
+  if (difficulty === "hard") {
+    plan.target.x = THREE.MathUtils.clamp(plan.target.x * 1.08, -2.25, 2.25);
+    plan.target.z = THREE.MathUtils.clamp(plan.target.z + (plan.shotType === "clear" ? 0.35 : -0.2), 0.65, 6.1);
+  }
   const initial = createAiReturnState(contactPosition, plan.target, plan.shotType);
   startFlight(initial, `AI ${plan.shotType}`, `The opponent aimed for the open ${plan.target.x < 0 ? "left" : "right"}-${plan.target.z < 3 ? "front" : "back"} court.`, "ai");
 }
@@ -328,6 +335,11 @@ nextRallyButton.addEventListener("click",()=>{
 });
 updateScoreboard();
 modeSelect!.addEventListener("change",()=>{ clearTrajectory(); });
+difficultySelect!.addEventListener("change",()=>{
+  clearTrajectory();
+  const level = difficultySelect!.value;
+  opponentReadout!.textContent = `AI difficulty: ${level.toUpperCase()}`;
+});
 
 function render() {
   requestAnimationFrame(render);
@@ -377,15 +389,19 @@ function render() {
     if(activeSource === "player" && aiTarget && !aiReturnAttempted) {
       const target = new THREE.Vector3(aiTarget.x,0,aiTarget.z);
       const distance = opponent.position.distanceTo(target);
-      const step = 9 * Math.max(delta,0);
+      const difficulty = difficultySelect!.value;
+      const aiSpeed = difficulty === "easy" ? 6 : difficulty === "hard" ? 12 : 9;
+      const aiReach = difficulty === "easy" ? 1.55 : difficulty === "hard" ? 1.05 : 1.35;
+      const reactionRatio = difficulty === "easy" ? 0.9 : difficulty === "hard" ? 0.72 : 0.82;
+      const step = aiSpeed * Math.max(delta,0);
       if(distance > 0.04) {
         opponent.position.lerp(target,Math.min(1,step/distance));
         opponent.rotation.y = THREE.MathUtils.damp(opponent.rotation.y, Math.atan2(target.x - opponent.position.x, target.z - opponent.position.z), 7, delta);
       }
-      const returnMoment = Math.max(0.12,flightResult.durationSeconds * 0.82);
+      const returnMoment = Math.max(0.12,flightResult.durationSeconds * reactionRatio);
       if(elapsed >= returnMoment) {
         aiReturnAttempted=true;
-        if(opponent.position.distanceTo(target) <= 1.35) {
+        if(opponent.position.distanceTo(target) <= aiReach) {
           opponentReadout!.textContent="AI reached it · returning…";
           makeAiReturn();
           replacedFlight = true;
