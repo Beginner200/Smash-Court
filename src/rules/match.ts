@@ -23,18 +23,28 @@ export function resolveToss(
     throw new Error("One side must choose serve/receive and the other must choose an end.");
   }
   if (winnerChoice.kind === "end" && loserChoice.kind !== "end") {
+    const winnerEnd = winnerChoice.end;
+    const loserEnd = winnerEnd === "near" ? "far" : "near";
+    const ends = tossWinner === "A"
+      ? { A: winnerEnd, B: loserEnd }
+      : { A: loserEnd, B: winnerEnd };
     return {
       firstServerSide: loserChoice.kind === "serve" ? tossLoser : tossWinner,
-      ends: { [tossWinner]: winnerChoice.end, [tossLoser]: winnerChoice.end === "near" ? "far" : "near" }
+      ends
     };
   }
   if (winnerChoice.kind === "end") {
     throw new Error("Invalid toss choice combination.");
   }
   if (loserChoice.kind === "end") {
+    const loserEnd = loserChoice.end;
+    const winnerEnd = loserEnd === "near" ? "far" : "near";
+    const ends = tossWinner === "A"
+      ? { A: winnerEnd, B: loserEnd }
+      : { A: loserEnd, B: winnerEnd };
     return {
       firstServerSide: winnerChoice.kind === "serve" ? tossWinner : tossLoser,
-      ends: { [tossWinner]: loserChoice.end === "near" ? "far" : "near", [tossLoser]: loserChoice.end }
+      ends
     };
   }
   return {
