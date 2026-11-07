@@ -127,9 +127,32 @@ function makePlayer(color: number, name: string): THREE.Group {
 const player = makePlayer(0x39c58d, "human-player");
 player.position.set(0, 0, 4.8);
 scene.add(player);
-const opponent = makePlayer(0xe2a34a, "simple-ai-opponent");
+const opponent = makePlayer(0xe2a34a, "ai-opponent-1");
 opponent.position.set(0, 0, -4.8);
 scene.add(opponent);
+const playerPartner = makePlayer(0x53a9d7, "player-ai-partner");
+playerPartner.position.set(-1.35, 0, 4.85);
+scene.add(playerPartner);
+const opponentPartner = makePlayer(0xc77a36, "ai-opponent-2");
+opponentPartner.position.set(1.35, 0, -4.85);
+scene.add(opponentPartner);
+function isDoublesMode() { return modeSelect!.value === "doubles"; }
+function updateDoublesFormation() {
+  const doubles = isDoublesMode();
+  playerPartner.visible = doubles;
+  opponentPartner.visible = doubles;
+  if (doubles) {
+    player.position.set(-1.35, 0, 4.85);
+    playerPartner.position.set(1.35, 0, 4.85);
+    opponent.position.set(-1.35, 0, -4.85);
+    opponentPartner.position.set(1.35, 0, -4.85);
+  } else {
+    player.position.set(0, 0, 4.8);
+    playerPartner.position.set(0, 0, 4.8);
+    opponent.position.set(0, 0, -4.8);
+    opponentPartner.position.set(0, 0, -4.8);
+  }
+}
 let playerMoveTimer = 0;
 let playerStamina = 100;
 const MAX_PLAYER_STAMINA = 100;
@@ -267,8 +290,7 @@ function newMatch() {
   updateServeReadout();
   matchMessage!.textContent = "Best of 3 · First to 21, win by 2 (cap 30)";
   clearTrajectory();
-  player.position.set(0,0,4.8);
-  opponent.position.set(0,0,-4.8);
+  updateDoublesFormation();
 }
 function clearTrajectory() {
   if(trajectoryLine) { scene.remove(trajectoryLine); trajectoryLine.geometry.dispose(); trajectoryLine=null; }
@@ -421,8 +443,7 @@ nextRallyButton.addEventListener("click",()=>{
   rallyStarted = false;
   serveInProgress = false;
   rallyState = "ready";
-  player.position.set(0,0,4.8);
-  opponent.position.set(0,0,-4.8);
+  updateDoublesFormation();
   matchMessage!.textContent = `Game ${matchScore.gameNumber} · Start the next rally`;
   status!.textContent = "Ready · serve to begin the next rally";
   nextRallyButton.disabled = true;
@@ -431,7 +452,7 @@ nextRallyButton.addEventListener("click",()=>{
 });
 updateScoreboard();
 updateServeReadout();
-modeSelect!.addEventListener("change",()=>{ clearTrajectory(); });
+modeSelect!.addEventListener("change",()=>{ clearTrajectory(); updateDoublesFormation(); status!.textContent = isDoublesMode() ? "Doubles mode · four players on court" : "Singles mode · one player per side"; });
 practiceAssist!.addEventListener("change", () => {
   contactReadout!.textContent = practiceAssist!.checked ? "Practice assist ON" : "Standard contact";
 });
@@ -466,6 +487,13 @@ function render() {
   aiSwingTimer = Math.max(0, aiSwingTimer - delta);
   animateAvatar(player, playerSwingTimer, playerMoveTimer, 0);
   animateAvatar(opponent, aiSwingTimer, playing && flightSource === "player" && !!aiTarget ? 0.24 : 0, Math.PI);
+  animateAvatar(playerPartner, 0, 0, Math.PI / 2);
+  animateAvatar(opponentPartner, 0, playing && flightSource === "player" && !!aiTarget && isDoublesMode() ? 0.24 : 0, Math.PI * 1.5);
+  if (isDoublesMode()) {
+    // The player's AI partner holds the opposite half of the near court.
+    playerPartner.position.x = THREE.MathUtils.damp(playerPartner.position.x, player.position.x > 0 ? -1.35 : 1.35, 3, delta);
+    playerPartner.position.z = THREE.MathUtils.damp(playerPartner.position.z, 4.9, 3, delta);
+  }
   if (impactRing && impactTimer > 0) {
     impactTimer = Math.max(0, impactTimer - delta);
     const progress = 1 - impactTimer / 0.28;
@@ -493,20 +521,21 @@ function render() {
     let replacedFlight = false;
     if(activeSource === "player" && aiTarget && !aiReturnAttempted) {
       const target = new THREE.Vector3(aiTarget.x,0,aiTarget.z);
-      const distance = opponent.position.distanceTo(target);
       const difficulty = difficultySelect!.value;
+      const activeOpponent = isDoublesMode() && opponentPartner.position.distanceTo(target) < opponent.position.distanceTo(target) ? opponentPartner : opponent;
+      const distance = activeOpponent.position.distanceTo(target);
       const aiSpeed = difficulty === "easy" ? 6 : difficulty === "hard" ? 12 : 9;
       const aiReach = difficulty === "easy" ? 1.55 : difficulty === "hard" ? 1.05 : 1.35;
       const reactionRatio = difficulty === "easy" ? 0.9 : difficulty === "hard" ? 0.72 : 0.82;
       const step = aiSpeed * Math.max(delta,0);
       if(distance > 0.04) {
-        opponent.position.lerp(target,Math.min(1,step/distance));
-        opponent.rotation.y = THREE.MathUtils.damp(opponent.rotation.y, Math.atan2(target.x - opponent.position.x, target.z - opponent.position.z), 7, delta);
+        activeOpponent.position.lerp(target,Math.min(1,step/distance));
+        activeOpponent.rotation.y = THREE.MathUtils.damp(activeOpponent.rotation.y, Math.atan2(target.x - activeOpponent.position.x, target.z - activeOpponent.position.z), 7, delta);
       }
       const returnMoment = Math.max(0.12,flightResult.durationSeconds * reactionRatio);
       if(elapsed >= returnMoment) {
         aiReturnAttempted=true;
-        if(opponent.position.distanceTo(target) <= aiReach) {
+        if(activeOpponent.position.distanceTo(target) <= aiReach) {
           opponentReadout!.textContent="AI reached it · returning…";
           makeAiReturn();
           replacedFlight = true;
