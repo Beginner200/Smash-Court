@@ -82,6 +82,7 @@ export const DOUBLES_WIDTH_M = 6.1;
 export const SINGLES_WIDTH_M = 5.18;
 export const SHORT_SERVICE_LINE_FROM_NET_M = 1.98;
 export const DOUBLES_LONG_SERVICE_LINE_INSET_M = 0.76;
+const LINE_CALL_EPSILON_M = 1e-9;
 
 /** BWF Law 1.3: boundary lines form part of the court, so equality is IN. */
 export function isLandingInCourt(point: LandingPoint, mode: MatchMode): boolean {
@@ -90,8 +91,8 @@ export function isLandingInCourt(point: LandingPoint, mode: MatchMode): boolean 
   if (radius < 0) throw new RangeError("Landing footprint radius cannot be negative.");
   // BWF Law 1.3: the line belongs to the court; an edge touching it is IN.
   return (
-    Math.abs(point.x) - radius <= halfWidth &&
-    Math.abs(point.distanceFromNet) - radius <= COURT_LENGTH_M / 2
+    Math.abs(point.x) - radius <= halfWidth + LINE_CALL_EPSILON_M &&
+    Math.abs(point.distanceFromNet) - radius <= COURT_LENGTH_M / 2 + LINE_CALL_EPSILON_M
   );
 }
 
@@ -110,17 +111,17 @@ export function isServeLandingInServiceCourt(
   const radius = point.footprintRadiusM ?? 0;
   if (radius < 0) throw new RangeError("Landing footprint radius cannot be negative.");
   const correctHalf = serviceCourtForScore(serverScore) === "right"
-    ? point.x <= radius
-    : point.x >= -radius;
+    ? point.x <= radius + LINE_CALL_EPSILON_M
+    : point.x >= -radius - LINE_CALL_EPSILON_M;
   const backLimit = mode === "singles"
     ? COURT_LENGTH_M / 2
     : COURT_LENGTH_M / 2 - DOUBLES_LONG_SERVICE_LINE_INSET_M;
 
   return (
     correctHalf &&
-    Math.abs(point.x) - radius <= halfWidth &&
-    point.distanceFromNet + radius >= SHORT_SERVICE_LINE_FROM_NET_M &&
-    point.distanceFromNet - radius <= backLimit
+    Math.abs(point.x) - radius <= halfWidth + LINE_CALL_EPSILON_M &&
+    point.distanceFromNet + radius >= SHORT_SERVICE_LINE_FROM_NET_M - LINE_CALL_EPSILON_M &&
+    point.distanceFromNet - radius <= backLimit + LINE_CALL_EPSILON_M
   );
 }
 
