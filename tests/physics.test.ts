@@ -81,10 +81,27 @@ describe("basic AI opponent", () => {
     expect(createAiReturnState(position, 0, "clear").velocity.y).toBeGreaterThan(createAiReturnState(position, 0, "drop").velocity.y);
   });
   it("creates a return shot that travels toward the player's half", () => {
-    const shot = createAiReturnState({ x: 0.5, y: 1.5, z: -4.5 }, -1);
+    const shot = createAiReturnState({ x: 0.5, y: 1.5, z: -4.5 }, { x: -1, y: 0, z: 4.5 });
     expect(shot.velocity.z).toBeGreaterThan(0);
     expect(Number.isFinite(shot.velocity.x)).toBe(true);
     expect(shot.velocity.y).toBeGreaterThan(0);
+  });
+
+  it("aims the return toward the player's current lateral and front/back position", () => {
+    const start = { x: 0, y: 1.55, z: -4.45 };
+    const leftTarget = { x: -2, y: 0, z: 2.5 };
+    const rightTarget = { x: 2, y: 0, z: 5.5 };
+    const leftShot = createAiReturnState(start, leftTarget, "clear");
+    const rightShot = createAiReturnState(start, rightTarget, "clear");
+    expect(leftShot.velocity.x).toBeLessThan(0);
+    expect(rightShot.velocity.x).toBeGreaterThan(0);
+    expect(rightShot.velocity.z).toBeGreaterThan(leftShot.velocity.z);
+    const leftLanding = simulateTrajectory(leftShot).landing;
+    const rightLanding = simulateTrajectory(rightShot).landing;
+    expect(leftLanding?.x).toBeLessThan(0);
+    expect(rightLanding?.x).toBeGreaterThan(0);
+    expect(leftLanding?.z).toBeCloseTo(leftTarget.z, 1);
+    expect(rightLanding?.z).toBeCloseTo(rightTarget.z, 1);
   });
 
   it("only assigns the AI a target for a valid landing on its half", () => {
@@ -102,7 +119,7 @@ describe("basic AI opponent", () => {
 
   it("sends an AI return through a playable racket-hit window on the player's side", () => {
     const playerPosition = { x: 0, y: 0, z: 4.8 };
-    const returnShot = createAiReturnState({ x: 0, y: 1.55, z: -4.45 }, 0, "drop");
+    const returnShot = createAiReturnState({ x: 0, y: 1.55, z: -4.45 }, playerPosition, "drop");
     const flight = simulateTrajectory(returnShot);
     expect(flight.end).toBe("ground");
     expect(flight.landing?.z).toBeGreaterThan(0);
