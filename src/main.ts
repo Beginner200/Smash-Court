@@ -123,14 +123,33 @@ const opponent = makePlayer(0xe2a34a, "simple-ai-opponent");
 opponent.position.set(0, 0, -4.8);
 scene.add(opponent);
 let playerMoveTimer = 0;
+let playerStamina = 100;
+const MAX_PLAYER_STAMINA = 100;
 let playerSwingTimer = 0;
 let aiSwingTimer = 0;
 let impactTimer = 0;
 let impactRing: THREE.Mesh | null = null;
 const moveStep = 0.45;
+function updateStaminaHud() {
+  const fill = document.querySelector<HTMLDivElement>("#stamina-fill");
+  const value = document.querySelector<HTMLSpanElement>("#stamina-value");
+  if (!fill || !value) return;
+  const percent = Math.round(playerStamina);
+  fill.style.width = `${percent}%`;
+  fill.classList.toggle("low", percent <= 25);
+  value.textContent = `${percent}%`;
+}
 function movePlayer(dx: number, dz: number) {
-  player.position.x = THREE.MathUtils.clamp(player.position.x + dx, -2.35, 2.35);
-  player.position.z = THREE.MathUtils.clamp(player.position.z + dz, 0.45, 6.25);
+  const staminaFactor = 0.35 + 0.65 * (playerStamina / MAX_PLAYER_STAMINA);
+  const scaledX = dx * staminaFactor;
+  const scaledZ = dz * staminaFactor;
+  const oldX = player.position.x;
+  const oldZ = player.position.z;
+  player.position.x = THREE.MathUtils.clamp(player.position.x + scaledX, -2.35, 2.35);
+  player.position.z = THREE.MathUtils.clamp(player.position.z + scaledZ, 0.45, 6.25);
+  const travelled = Math.hypot(player.position.x - oldX, player.position.z - oldZ);
+  playerStamina = Math.max(0, playerStamina - travelled * 11);
+  updateStaminaHud();
   playerMoveTimer = 0.24;
 }
 document.querySelectorAll<HTMLButtonElement>("[data-move]").forEach(button => {
@@ -358,6 +377,10 @@ function render() {
     avatar.rotation.y = THREE.MathUtils.damp(avatar.rotation.y, swing > 0 ? -0.18 : 0, 8, delta);
   };
   playerMoveTimer = Math.max(0, playerMoveTimer - delta);
+  if (playerMoveTimer === 0 && playerStamina < MAX_PLAYER_STAMINA) {
+    playerStamina = Math.min(MAX_PLAYER_STAMINA, playerStamina + 14 * delta);
+    updateStaminaHud();
+  }
   playerSwingTimer = Math.max(0, playerSwingTimer - delta);
   aiSwingTimer = Math.max(0, aiSwingTimer - delta);
   animateAvatar(player, playerSwingTimer, playerMoveTimer, 0);
