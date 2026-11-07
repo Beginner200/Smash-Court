@@ -126,6 +126,7 @@ function makePlayer(color: number, name: string): THREE.Group {
   group.userData.rig = { arm, leftLeg, rightLeg, body } satisfies AvatarRig;
   return group;
 }
+let playerEndSign: 1 | -1 = 1;
 const player = makePlayer(0x39c58d, "human-player");
 player.position.set(0, 0, 4.8);
 scene.add(player);
@@ -139,6 +140,22 @@ const opponentPartner = makePlayer(0xc77a36, "ai-opponent-2");
 opponentPartner.position.set(1.35, 0, -4.85);
 scene.add(opponentPartner);
 let doublesRotation: DoublesRotationState = createDoublesRotation();
+function toLocalPosition(position: { x: number; y: number; z: number }) {
+  return { x: position.x, y: position.y, z: position.z * playerEndSign };
+}
+function toWorldShuttle(state: ReturnType<typeof createShuttleState>) {
+  return createShuttleState(
+    { x: state.position.x, y: state.position.y, z: state.position.z * playerEndSign },
+    { x: state.velocity.x, y: state.velocity.y, z: state.velocity.z * playerEndSign },
+  );
+}
+function switchCourtEnds() {
+  playerEndSign = playerEndSign === 1 ? -1 : 1;
+  updateDoublesFormation();
+  camera.position.z = playerEndSign * 15.5;
+  controls.target.set(0, 0.9, 0);
+  controls.update();
+}
 function isDoublesMode() { return modeSelect!.value === "doubles"; }
 function doublesServer(side: "player" | "opponent"): DoublesPlayer {
   return getDoublesServer(doublesRotation, side, matchScore.points[side]);
@@ -154,15 +171,15 @@ function updateDoublesFormation() {
     const opponentLeft = opponentRight === opponent ? opponentPartner : opponent;
     const playerServerIsRight = doublesServer("player") === doublesRotation.playerRight;
     const opponentServerIsRight = doublesServer("opponent") === doublesRotation.opponentRight;
-    playerRight.position.set(0.78, 0, playerServerIsRight ? 5.8 : 4.25);
-    playerLeft.position.set(-0.78, 0, playerServerIsRight ? 4.25 : 5.8);
-    opponentRight.position.set(-0.78, 0, opponentServerIsRight ? -5.8 : -4.25);
-    opponentLeft.position.set(0.78, 0, opponentServerIsRight ? -4.25 : -5.8);
+    playerRight.position.set(0.78, 0, playerEndSign * (playerServerIsRight ? 5.8 : 4.25));
+    playerLeft.position.set(-0.78, 0, playerEndSign * (playerServerIsRight ? 4.25 : 5.8));
+    opponentRight.position.set(-0.78, 0, -playerEndSign * (opponentServerIsRight ? 5.8 : 4.25));
+    opponentLeft.position.set(0.78, 0, -playerEndSign * (opponentServerIsRight ? 4.25 : 5.8));
   } else {
-    player.position.set(0, 0, 4.8);
-    playerPartner.position.set(0, 0, 4.8);
-    opponent.position.set(0, 0, -4.8);
-    opponentPartner.position.set(0, 0, -4.8);
+    player.position.set(0, 0, playerEndSign * 4.8);
+    playerPartner.position.set(0, 0, playerEndSign * 4.8);
+    opponent.position.set(0, 0, -playerEndSign * 4.8);
+    opponentPartner.position.set(0, 0, -playerEndSign * 4.8);
   }
 }
 let playerMoveTimer = 0;
@@ -195,7 +212,7 @@ function movePlayer(dx: number, dz: number) {
   const oldX = player.position.x;
   const oldZ = player.position.z;
   player.position.x = THREE.MathUtils.clamp(player.position.x + scaledX, -2.35, 2.35);
-  player.position.z = THREE.MathUtils.clamp(player.position.z + scaledZ, 0.45, 6.25);
+  player.position.z = playerEndSign * THREE.MathUtils.clamp(player.position.z * playerEndSign + scaledZ * playerEndSign, 0.45, 6.25);
   const travelled = Math.hypot(player.position.x - oldX, player.position.z - oldZ);
   playerStamina = Math.max(0, playerStamina - travelled * 11);
   updateStaminaHud();
@@ -204,8 +221,8 @@ function movePlayer(dx: number, dz: number) {
 function moveInDirection(direction: string | undefined) {
   if (direction === "left") movePlayer(-moveStep, 0);
   if (direction === "right") movePlayer(moveStep, 0);
-  if (direction === "forward") movePlayer(0, -moveStep);
-  if (direction === "back") movePlayer(0, moveStep);
+  if (direction === "forward") movePlayer(0, -moveStep * playerEndSign);
+  if (direction === "back") movePlayer(0, moveStep * playerEndSign);
 }
 // Press once for a small step, or hold a direction to keep moving smoothly.
 document.querySelectorAll<HTMLButtonElement>("[data-move]").forEach(button => {
@@ -228,8 +245,8 @@ document.querySelectorAll<HTMLButtonElement>("[data-move]").forEach(button => {
 window.addEventListener("keydown", event => {
   if (["ArrowLeft","a","A"].includes(event.key)) movePlayer(-moveStep, 0);
   if (["ArrowRight","d","D"].includes(event.key)) movePlayer(moveStep, 0);
-  if (["ArrowUp","w","W"].includes(event.key)) movePlayer(0, -moveStep);
-  if (["ArrowDown","s","S"].includes(event.key)) movePlayer(0, moveStep);
+  if (["ArrowUp","w","W"].includes(event.key)) movePlayer(0, -moveStep * playerEndSign);
+  if (["ArrowDown","s","S"].includes(event.key)) movePlayer(0, moveStep * playerEndSign);
 });
 
 const shuttle = new THREE.Group();
@@ -311,8 +328,12 @@ function awardPoint(winner: MatchSide, reason: string) {
   updateBreakHud();
   nextRallyButton.disabled = !!matchBreak;
   if (isDoublesMode()) doublesRotation = advanceDoublesRotation(doublesRotation, winner);
+  if (!matchScore.winner && matchScore.gameNumber !== previousGameNumber) {
+    switchCourtEnds();
+  } else {
+    updateDoublesFormation();
+  }
   servingSide = winner;
-  updateDoublesFormation();
   rallyStarted = false;
   serveInProgress = false;
   updateServeReadout();
@@ -333,6 +354,10 @@ function newMatch() {
   midGameBreakUsed = false;
   updateBreakHud();
   doublesRotation = createDoublesRotation();
+  playerEndSign = 1;
+  camera.position.z = 15.5;
+  controls.target.set(0, 0.9, 0);
+  controls.update();
   pointResolved = false;
   servingSide = "player";
   rallyStarted = false;
@@ -390,7 +415,9 @@ function startFlight(initial: ReturnType<typeof createShuttleState>, label: stri
   speedReadout!.textContent = `${Math.round(metresPerSecondToKmh(magnitude(initial.velocity)))} km/h launch`;
   timeReadout!.textContent = `${result.durationSeconds.toFixed(2)} s · ${result.samples.length} steps`;
   aiTarget = source === "player" ? (() => {
-    const target = getAiLandingTarget(result!);
+    const target = result!.end === "ground" && result!.landing && result!.landing.z * playerEndSign < 0
+      ? result!.landing
+      : null;
     return target ? new THREE.Vector3(target.x,0,target.z) : null;
   })() : null;
   aiReturnAttempted=false;
@@ -423,11 +450,8 @@ function makeShot(type: ShotType = "clear") {
   }
 
   const contact = assessShotContact(player.position, launchPosition, practiceAssist!.checked ? 2.25 : undefined);
-  const initial = createShotState(type, {
-    x: launchPosition.x,
-    y: launchPosition.y,
-    z: launchPosition.z,
-  });
+  const localShot = createShotState(type, toLocalPosition(launchPosition));
+  const initial = toWorldShuttle(localShot);
   initial.velocity.x += contact.lateralErrorMps;
   initial.velocity.y *= contact.powerMultiplier;
   initial.velocity.z *= contact.powerMultiplier;
@@ -442,7 +466,8 @@ function makeShot(type: ShotType = "clear") {
 function makeServe(server: ServingSide) {
   if (playing || pointResolved || rallyStarted || matchScore.winner || server !== servingSide) return;
   const serverScore = matchScore.points[server];
-  const initial = createServeState(server, serverScore);
+  const localServe = createServeState(server, serverScore);
+  const initial = toWorldShuttle(localServe);
   const mode: MatchMode = modeSelect!.value === "doubles" ? "doubles" : "singles";
   const check = evaluateServeFlight(initial, server, serverScore, mode);
   if (check.evaluation.kind !== "LEGAL") {
@@ -464,18 +489,20 @@ function makeServe(server: ServingSide) {
 }
 function makeAiReturn() {
   const difficulty = difficultySelect!.value;
-  const contactPosition = { x: aiContactPlayer.position.x, y: 1.55, z: Math.min(-0.65, aiContactPlayer.position.z + 0.35) };
+  const worldContact = { x: aiContactPlayer.position.x, y: 1.55, z: aiContactPlayer.position.z + playerEndSign * 0.35 };
+  const contactPosition = toLocalPosition(worldContact);
   const plan = chooseAiReturnPlan(
-    player.position,
+    toLocalPosition(player.position),
     contactPosition,
     aiRallyIndex++,
-    isDoublesMode() ? playerPartner.position : undefined,
+    isDoublesMode() ? toLocalPosition(playerPartner.position) : undefined,
   );
   if (difficulty === "hard") {
     plan.target.x = THREE.MathUtils.clamp(plan.target.x * 1.08, -2.25, 2.25);
     plan.target.z = THREE.MathUtils.clamp(plan.target.z + (plan.shotType === "clear" ? 0.35 : -0.2), 0.65, 6.1);
   }
-  const initial = createAiReturnState(contactPosition, plan.target, plan.shotType, isDoublesMode() ? "doubles" : "singles");
+  const localReturn = createAiReturnState(contactPosition, plan.target, plan.shotType, isDoublesMode() ? "doubles" : "singles");
+  const initial = toWorldShuttle(localReturn);
   startFlight(initial, `AI ${plan.shotType}`, `The opponent aimed for the open ${plan.target.x < 0 ? "left" : "right"}-${plan.target.z < 3 ? "front" : "back"} court.`, "ai");
 }
 function magnitude(v: {x:number;y:number;z:number}) { return Math.hypot(v.x,v.y,v.z); }
@@ -566,7 +593,7 @@ function render() {
     const chasing = opponentPartner.position.distanceTo(aiTarget) < opponent.position.distanceTo(aiTarget) ? opponentPartner : opponent;
     const cover = chasing === opponent ? opponentPartner : opponent;
     const coverX = chasing.position.x > 0 ? -1.25 : 1.25;
-    const coverZ = aiTarget.z < -3.2 ? -3.7 : -4.9;
+    const coverZ = -playerEndSign * (aiTarget.z * playerEndSign < -3.2 ? 3.7 : 4.9);
     cover.position.x = THREE.MathUtils.damp(cover.position.x, coverX, 2.2, delta);
     cover.position.z = THREE.MathUtils.damp(cover.position.z, coverZ, 2.2, delta);
   }
@@ -600,17 +627,17 @@ function render() {
       // descending contact point on our half, rather than chasing the shuttle's
       // instantaneous position across the court.
       const interceptSample = flightResult.samples.slice(sampleIndex + 1).find((candidate) =>
-        candidate.position.z > 0.35 &&
+        candidate.position.z * playerEndSign > 0.35 &&
         candidate.position.y >= 0.75 &&
         candidate.position.y <= 2.35 &&
         candidate.velocity.y < -0.2 &&
-        candidate.velocity.z > 0,
+        candidate.velocity.z * playerEndSign < 0,
       );
       if (interceptSample) {
         const interceptPoint = new THREE.Vector3(
           THREE.MathUtils.clamp(interceptSample.position.x, -2.35, 2.35),
           0,
-          THREE.MathUtils.clamp(interceptSample.position.z, 0.55, 6.15),
+          playerEndSign * THREE.MathUtils.clamp(interceptSample.position.z * playerEndSign, 0.55, 6.15),
         );
         const partnerDistance = Math.hypot(playerPartner.position.x - interceptPoint.x, playerPartner.position.z - interceptPoint.z);
         const humanDistance = Math.hypot(player.position.x - interceptPoint.x, player.position.z - interceptPoint.z);
@@ -629,9 +656,11 @@ function render() {
             playerPartner.rotation.y = Math.atan2(dx, dz);
           }
           const incoming = { x: sample.position.x, y: sample.position.y, z: sample.position.z };
-          if (sample.position.z > 0.35 && canPlayerHitShuttle(playerPartner.position, incoming, 1.38)) {
-            const partnerShotType = chooseDoublesPartnerShot(incoming, sample.velocity, partnerShotIndex++);
-            const partnerShot = createDoublesPartnerReturnState(incoming, partnerShotType);
+          if (sample.position.z * playerEndSign > 0.35 && canPlayerHitShuttle(playerPartner.position, incoming, 1.38)) {
+            const localIncoming = toLocalPosition(incoming);
+            const localVelocity = { ...sample.velocity, z: sample.velocity.z * playerEndSign };
+            const partnerShotType = chooseDoublesPartnerShot(localIncoming, localVelocity, partnerShotIndex++);
+            const partnerShot = toWorldShuttle(createDoublesPartnerReturnState(localIncoming, partnerShotType));
             partnerSwingTimer = 0.34;
             contactReadout!.textContent = `AI PARTNER · ${partnerShotType.toUpperCase()}`;
             opponentReadout!.textContent = `Your partner chose a ${partnerShotType} based on the incoming shuttle.`;
@@ -646,7 +675,7 @@ function render() {
         } else {
           // If the human is closer, the partner covers the space left open.
           const supportX = THREE.MathUtils.clamp(player.position.x > 0 ? -1.35 : 1.35, -2.1, 2.1);
-          const supportZ = THREE.MathUtils.clamp(player.position.z - 0.55, 1.0, 5.6);
+          const supportZ = playerEndSign * THREE.MathUtils.clamp(player.position.z * playerEndSign - 0.55, 1.0, 5.6);
           const sx = supportX - playerPartner.position.x;
           const sz = supportZ - playerPartner.position.z;
           const sd = Math.hypot(sx, sz);
@@ -691,14 +720,14 @@ function render() {
       playing=false;
       if (!pointResolved) {
         if (activeSource === "player") {
-          const validOpponentLanding = flightResult.end === "ground" && !!flightResult.landing && flightResult.landing.z < 0;
+          const validOpponentLanding = flightResult.end === "ground" && !!flightResult.landing && flightResult.landing.z * playerEndSign < 0;
           if (validOpponentLanding) {
             awardPoint("player", flightWasServe ? "AI failed to receive the serve" : aiReturnAttempted ? "AI could not reach the shuttle" : "AI failed to return");
           } else {
             awardPoint("opponent", flightResult.end === "net" ? "Your shot hit the net" : "Your shot landed out");
           }
         } else {
-          const validPlayerLanding = flightResult.end === "ground" && !!flightResult.landing && flightResult.landing.z > 0;
+          const validPlayerLanding = flightResult.end === "ground" && !!flightResult.landing && flightResult.landing.z * playerEndSign > 0;
           awardPoint(validPlayerLanding ? "opponent" : "player", validPlayerLanding ? (flightWasServe ? "You failed to receive the serve" : "You did not return the shuttle") : "AI return was a fault");
         }
       }
