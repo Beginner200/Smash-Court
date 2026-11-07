@@ -16,22 +16,22 @@ export const SHOT_PROFILES: Readonly<Record<ShotType, ShotProfile>> = Object.fre
   clear: {
     label: "Clear",
     description: "High, deep shot toward the opponent's back court.",
-    velocity: { x: 0, y: 13, z: -40 },
+    velocity: { x: 0, y: 12, z: -25 },
   },
   drop: {
     label: "Drop",
     description: "Gentler attacking shot intended to fall near the net.",
-    velocity: { x: 0, y: 7, z: -34 },
+    velocity: { x: 0, y: 6, z: -22 },
   },
   smash: {
     label: "Smash",
     description: "Fast, steep attacking shot.",
-    velocity: { x: 0, y: 2.5, z: -55 },
+    velocity: { x: 0, y: 5, z: -34 },
   },
   lift: {
     label: "Lift",
     description: "High defensive shot toward the opponent's rear court.",
-    velocity: { x: 0, y: 17, z: -42 },
+    velocity: { x: 0, y: 14, z: -24 },
   },
 });
 
