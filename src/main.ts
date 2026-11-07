@@ -3,7 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildCourtScene } from "./scene/court.js";
 import type { MatchMode } from "./rules/types.js";
 import { SHOT_PROFILES, createShotState, type ShotType } from "./physics/shots.js";
-import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult } from "./physics/shuttle.js";
+import { DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult } from "./physics/shuttle.js";
 import "./style.css";
 
 const mount = document.querySelector<HTMLDivElement>("#scene");
