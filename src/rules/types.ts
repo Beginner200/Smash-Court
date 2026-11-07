@@ -114,6 +114,8 @@ export interface ServiceObservation {
   baseStruckFirst: boolean;
   releasedWithoutSpin: boolean;
   continuousForwardMovement: boolean;
+  flightUpwards: boolean;
+  wouldLandInCorrectServiceCourt: boolean;
   missedShuttle: boolean;
   receiverReady: boolean;
   receiverAlsoFaulted?: boolean;
