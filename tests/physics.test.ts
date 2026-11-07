@@ -63,6 +63,7 @@ describe("badminton shot presets", () => {
 
 
 import { chooseAiReturnShot, createAiReturnState, getAiLandingTarget } from "../src/physics/ai.js";
+import { canPlayerHitShuttle } from "../src/physics/hit-detection.js";
 
 describe("basic AI opponent", () => {
   it("chooses a drop when the player is deep in the back court", () => {
@@ -97,6 +98,15 @@ describe("basic AI opponent", () => {
       expect(target).toBeNull();
     }
     expect(getAiLandingTarget({ ...valid, end: "net" })).toBeNull();
+  });
+
+  it("sends an AI return through a playable racket-hit window on the player's side", () => {
+    const playerPosition = { x: 0, y: 0, z: 4.8 };
+    const returnShot = createAiReturnState({ x: 0, y: 1.55, z: -4.45 }, 0, "drop");
+    const flight = simulateTrajectory(returnShot);
+    expect(flight.end).toBe("ground");
+    expect(flight.landing?.z).toBeGreaterThan(0);
+    expect(flight.samples.some(sample => canPlayerHitShuttle(playerPosition, sample.position))).toBe(true);
   });
 
   it("rejects non-finite AI return coordinates", () => {
