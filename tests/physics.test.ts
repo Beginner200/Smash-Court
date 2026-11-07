@@ -35,3 +35,28 @@ describe("shuttle flight physics", () => {
     expect(() => stepShuttle(initial,0)).toThrow(RangeError);
   });
 });
+
+import { createShotState, SHOT_PROFILES, type ShotType } from "../src/physics/shots.js";
+
+describe("badminton shot presets", () => {
+  const shotTypes: ShotType[] = ["clear", "drop", "smash", "lift"];
+
+  it("provides all four basic shot types with finite launch velocities", () => {
+    for (const type of shotTypes) {
+      const state = createShotState(type, { x: 0, y: 1.25, z: 4.2 });
+      expect(Number.isFinite(state.velocity.x)).toBe(true);
+      expect(Number.isFinite(state.velocity.y)).toBe(true);
+      expect(Number.isFinite(state.velocity.z)).toBe(true);
+      expect(state.velocity.z).toBeLessThan(0);
+      expect(SHOT_PROFILES[type].label.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("rejects invalid shot aim values", () => {
+    expect(() => createShotState("clear", { x: 0, y: 1, z: 4 }, Number.NaN)).toThrow(RangeError);
+  });
+
+  it("gives smash a faster forward launch than a drop", () => {
+    expect(Math.abs(SHOT_PROFILES.smash.velocity.z)).toBeGreaterThan(Math.abs(SHOT_PROFILES.drop.velocity.z));
+  });
+});
