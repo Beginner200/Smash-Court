@@ -36,3 +36,34 @@ Official reference: https://system.bwfbadminton.com/documents/folder_1_81/Statut
 ## Phase 1 status
 
 This is the initial rules-engine milestone. Run tests and review the documented known limitations before treating it as tournament-grade. Physics-derived calls, visual player positions, and a full rally simulator arrive in later phases.
+
+
+## Phase 2 — 3D court and physics sandbox
+
+The browser sandbox uses Three.js, Vite, and a custom deterministic shuttle integrator.
+
+### Run the 3D sandbox
+
+```bash
+npm install
+npm run dev
+```
+
+Open the local Vite URL printed by the command. Use drag to orbit the court, scroll to zoom, and **Launch shuttle** to visualize a simulated flight. Choose singles or doubles to apply the relevant court width.
+
+### Physics model
+
+- Quadratic aerodynamic drag: `F_d = 0.5 × rho × CdA × |v|²`.
+- Gravity with a fixed 1/240-second integration step.
+- Deterministic fixed-step integration (no random forces).
+- Net-plane and ground contact checks.
+- Landing decisions are delegated to `src/rules/service.ts`, keeping the BWF rules code separate from rendering.
+
+The current effective drag area is a tuning baseline. Match calibration requires measured shuttle launch/flight data across speeds and conditions; the sandbox does not claim professional-grade aerodynamic validation yet.
+
+### Phase 2 source layout
+
+- `src/physics/shuttle.ts`: pure shuttle dynamics and trajectory results.
+- `src/scene/court.ts`: Three.js regulation court, service lines, net and posts.
+- `src/main.ts`: browser scene, camera controls and sandbox UI.
+- `tests/physics.test.ts`: deterministic physics tests.
