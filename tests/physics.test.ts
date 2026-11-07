@@ -60,3 +60,32 @@ describe("badminton shot presets", () => {
     expect(Math.abs(SHOT_PROFILES.smash.velocity.z)).toBeGreaterThan(Math.abs(SHOT_PROFILES.drop.velocity.z));
   });
 });
+
+
+import { createAiReturnState, getAiLandingTarget } from "../src/physics/ai.js";
+
+describe("basic AI opponent", () => {
+  it("creates a return shot that travels toward the player's half", () => {
+    const shot = createAiReturnState({ x: 0.5, y: 1.5, z: -4.5 }, -1);
+    expect(shot.velocity.z).toBeGreaterThan(0);
+    expect(Number.isFinite(shot.velocity.x)).toBe(true);
+    expect(shot.velocity.y).toBeGreaterThan(0);
+  });
+
+  it("only assigns the AI a target for a valid landing on its half", () => {
+    const valid = simulateTrajectory(createShuttleState(
+      { x: 0, y: 2.3, z: -5.8 }, { x: 0, y: 10, z: 25 },
+    ));
+    const target = getAiLandingTarget(valid);
+    if (valid.end === "ground" && valid.landing && valid.landing.z < 0) {
+      expect(target?.z).toBeLessThan(0);
+    } else {
+      expect(target).toBeNull();
+    }
+    expect(getAiLandingTarget({ ...valid, end: "net" })).toBeNull();
+  });
+
+  it("rejects non-finite AI return coordinates", () => {
+    expect(() => createAiReturnState({ x: Number.NaN, y: 1, z: -2 })).toThrow(RangeError);
+  });
+});
