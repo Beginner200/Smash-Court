@@ -21,7 +21,6 @@ export type InPlayEvent =
   | { kind: "serve-caught-on-net" }
   | { kind: "serve-caught-in-net-after-crossing" }
   | { kind: "receiver-partner-hit-serve" }
-  | { kind: "racket-does-not-travel-forward" }
   | { kind: "over-net-invasion"; strikerFollowThrough: boolean; initialContactOnOwnSide: boolean }
   | { kind: "under-net-invasion"; obstructsOrDistracts: boolean }
   | { kind: "obstruction"; deliberate: boolean }
