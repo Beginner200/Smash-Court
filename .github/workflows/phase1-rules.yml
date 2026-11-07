@@ -1,4 +1,4 @@
-name: Phase 1 Rules Engine
+name: Smash Court Checks
 on:
   push:
     branches: [main]
@@ -16,3 +16,4 @@ jobs:
       - run: npm run typecheck
       - run: npm test
       - run: npm run rules:demo
+      - run: npm run build
