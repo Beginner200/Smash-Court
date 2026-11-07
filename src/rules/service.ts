@@ -14,13 +14,15 @@ export function evaluateService(observation: ServiceObservation): ServiceEvaluat
     return { kind: "LET", lawRef: "14.2.1", reason: "Receiver was not ready." };
   }
 
-  let serverFault: { lawRef: string; reason: string } | null = null;
-  let receiverFault: { lawRef: string; reason: string } | null = null;
+  const faults: {
+    server: { lawRef: string; reason: string } | null;
+    receiver: { lawRef: string; reason: string } | null;
+  } = { server: null, receiver: null };
   const setServerFault = (lawRef: string, reason: string) => {
-    serverFault ??= { lawRef, reason };
+    faults.server ??= { lawRef, reason };
   };
   const setReceiverFault = (lawRef: string, reason: string) => {
-    receiverFault ??= { lawRef, reason };
+    faults.receiver ??= { lawRef, reason };
   };
 
   // BWF Law 9.1.1: either side may cause undue delay once both are ready.
@@ -64,14 +66,14 @@ export function evaluateService(observation: ServiceObservation): ServiceEvaluat
   }
 
   // BWF Law 14.2.2: simultaneous server and receiver faults are a let.
-  if (serverFault && receiverFault) {
+  if (faults.server && faults.receiver) {
     return { kind: "LET", lawRef: "14.2.2", reason: "Both server and receiver were faulted during service." };
   }
-  if (receiverFault) {
-    return { kind: "FAULT", against: "receiver", ...receiverFault };
+  if (faults.receiver) {
+    return { kind: "FAULT", against: "receiver", ...faults.receiver };
   }
-  if (serverFault) {
-    return { kind: "FAULT", against: "server", ...serverFault };
+  if (faults.server) {
+    return { kind: "FAULT", against: "server", ...faults.server };
   }
   return { kind: "LEGAL", lawRef: "9.1", reason: "Correct service" };
 }
