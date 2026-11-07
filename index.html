@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="theme-color" content="#07120f" />
+    <meta name="description" content="Smash Court 3D — badminton court and shuttle physics sandbox." />
+    <title>Smash Court 3D · Physics Lab</title>
+  </head>
+  <body>
+    <main class="app">
+      <header>
+        <div class="brand"><div class="mark">⌁</div><div><div class="eyebrow">Badminton simulation project</div><h1>SMASH COURT <span>3D</span></h1></div></div>
+        <div class="phase">PHASE 02 · PHYSICS LAB</div>
+      </header>
+      <section class="intro">
+        <div><h2>Regulation court & shuttle flight</h2><p>Explore the regulation court in 3D, launch a simulated shuttle, and inspect its drag-shaped trajectory. Drag to orbit and scroll to zoom.</p></div>
+      </section>
+      <section class="stage" aria-label="Interactive 3D badminton court">
+        <div id="scene"></div>
+        <div class="hud">
+          <div class="hud-card"><div class="hud-label">Flight status</div><div class="hud-value" id="flight-status">Ready to launch</div></div>
+          <div class="hud-card"><div class="hud-label">Launch speed</div><div class="hud-value" id="speed-readout">—</div></div>
+          <div class="hud-card"><div class="hud-label">Flight duration</div><div class="hud-value" id="time-readout">—</div></div>
+        </div>
+      </section>
+      <section class="controls" aria-label="Physics controls">
+        <button class="primary" id="launch">Launch shuttle ↗</button>
+        <button class="secondary" id="reset">Reset view</button>
+        <label class="select-wrap" for="mode">Court ruleset
+          <select id="mode"><option value="singles">Singles</option><option value="doubles">Doubles</option></select>
+        </label>
+      </section>
+      <div class="legend"><span><i class="dot"></i>Simulated flight path</span><span><i class="dot white"></i>Court & service lines</span><span><i class="dot gold"></i>Shuttlecock model</span></div>
+      <footer class="note">Physics note: quadratic drag is integrated with fixed 1/240-second steps for deterministic replay. The aerodynamic coefficient is an initial tuning value, not a claim of laboratory-calibrated shuttle data. Court line decisions reuse the Phase 1 rules module.</footer>
+    </main>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
