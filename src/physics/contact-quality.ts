@@ -10,12 +10,12 @@ export interface ShotContactQuality {
 }
 
 /** Rates contact using racket distance and shuttle height at the instant of the hit. */
-export function assessShotContact(player: Vec3, shuttle: Vec3): ShotContactQuality {
+export function assessShotContact(player: Vec3, shuttle: Vec3, reachM = PLAYER_HIT_REACH_M): ShotContactQuality {
   const values = [player.x, player.y, player.z, shuttle.x, shuttle.y, shuttle.z];
-  if (!values.every(Number.isFinite)) throw new RangeError("Contact positions must be finite.");
+  if (!values.every(Number.isFinite) || !Number.isFinite(reachM) || reachM <= 0) throw new RangeError("Contact positions and reach must be finite.");
   const racket = { x: player.x, y: player.y + PLAYER_RACKET_HEIGHT_M, z: player.z };
   const distance = Math.hypot(shuttle.x-racket.x, shuttle.y-racket.y, shuttle.z-racket.z);
-  const distanceScore = Math.max(0, 1 - distance / PLAYER_HIT_REACH_M);
+  const distanceScore = Math.max(0, 1 - distance / reachM);
   const idealHeight = 1.8;
   const heightScore = Math.max(0, 1 - Math.abs(shuttle.y-idealHeight) / 1.8);
   const quality = Math.max(0, Math.min(1, distanceScore * 0.65 + heightScore * 0.35));
