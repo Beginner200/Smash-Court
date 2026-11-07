@@ -160,3 +160,45 @@ describe("basic AI opponent", () => {
     expect(() => createAiReturnState({ x: Number.NaN, y: 1, z: -2 })).toThrow(RangeError);
   });
 });
+
+
+import { chooseDoublesPartnerShot, createDoublesPartnerReturnState } from "../src/physics/ai.js";
+
+describe("doubles partner shot variety", () => {
+  it("chooses a lift for a low defensive contact", () => {
+    expect(chooseDoublesPartnerShot(
+      { x: 0, y: 0.9, z: 4.2 },
+      { x: 0, y: -3, z: 8 },
+    )).toBe("lift");
+  });
+
+  it("chooses a smash for a high attacking contact", () => {
+    expect(chooseDoublesPartnerShot(
+      { x: 0, y: 2.15, z: 3.8 },
+      { x: 0, y: -2, z: 8 },
+    )).toBe("smash");
+  });
+
+  it("chooses a drop when taking the shuttle near the front court", () => {
+    expect(chooseDoublesPartnerShot(
+      { x: 0, y: 1.55, z: 2.1 },
+      { x: 0, y: -2, z: 8 },
+    )).toBe("drop");
+  });
+
+  it("uses a clear in a neutral contact", () => {
+    expect(chooseDoublesPartnerShot(
+      { x: 0, y: 1.55, z: 4.1 },
+      { x: 0, y: -2, z: 8 },
+      0,
+    )).toBe("clear");
+  });
+
+  it("produces distinct, controlled trajectories for the four partner shots", () => {
+    const contact = { x: 0.2, y: 2.15, z: 4.1 };
+    const velocities = (["clear", "drop", "smash", "lift"] as const).map(type =>
+      createDoublesPartnerReturnState(contact, type).velocity
+    );
+    expect(new Set(velocities.map(v => `${v.x.toFixed(2)}:${v.y.toFixed(2)}:${v.z.toFixed(2)}`)).size).toBe(4);
+  });
+});
