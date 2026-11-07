@@ -4,7 +4,7 @@ import { buildCourtScene } from "./scene/court.js";
 import type { MatchMode } from "./rules/types.js";
 import { SHOT_PROFILES, createShotState, type ShotType } from "./physics/shots.js";
 import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult } from "./physics/shuttle.js";
-import { chooseAiReturnPlan, createAiReturnState, getAiLandingTarget } from "./physics/ai.js";
+import { chooseAiReturnPlan, createAiReturnState, createDoublesPartnerReturnState, getAiLandingTarget } from "./physics/ai.js";
 import { canPlayerHitShuttle } from "./physics/hit-detection.js";
 import { assessShotContact } from "./physics/contact-quality.js";
 import { createServeState, evaluateServeFlight, type ServingSide } from "./physics/serve.js";
@@ -584,7 +584,7 @@ function render() {
           }
           const incoming = { x: sample.position.x, y: sample.position.y, z: sample.position.z };
           if (sample.position.z > 0.35 && canPlayerHitShuttle(playerPartner.position, incoming, 1.38)) {
-            const partnerShot = createShotState("clear", incoming);
+            const partnerShot = createDoublesPartnerReturnState(incoming);
             partnerSwingTimer = 0.34;
             contactReadout!.textContent = "AI PARTNER · INTERCEPT";
             opponentReadout!.textContent = "Your partner intercepted the shuttle and returned it.";
