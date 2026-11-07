@@ -11,10 +11,10 @@
     <main class="app">
       <header>
         <div class="brand"><div class="mark">⌁</div><div><div class="eyebrow">Badminton simulation project</div><h1>SMASH COURT <span>3D</span></h1></div></div>
-        <div class="phase">PHASE 03 · PLAYER MOVEMENT</div>
+        <div class="phase">PHASE 03 · BASIC SHOTS</div>
       </header>
       <section class="intro">
-        <div><h2>Playable court prototype</h2><p>Move your player around the near court with the on-screen arrows or WASD. Drag to orbit and scroll to zoom; shuttle flight controls remain available below.</p></div>
+        <div><h2>Move and hit the shuttle</h2><p>Move around the near court, then choose Clear, Drop, Smash, or Lift. Drag to orbit and scroll to zoom.</p></div>
       </section>
       <section class="stage" aria-label="Interactive 3D badminton court">
         <div id="scene"></div>
@@ -22,14 +22,24 @@
           <div class="hud-card"><div class="hud-label">Flight status</div><div class="hud-value" id="flight-status">Ready to launch</div></div>
           <div class="hud-card"><div class="hud-label">Launch speed</div><div class="hud-value" id="speed-readout">—</div></div>
           <div class="hud-card"><div class="hud-label">Flight duration</div><div class="hud-value" id="time-readout">—</div></div>
+          <div class="hud-card shot-card"><div class="hud-label">Selected shot</div><div class="hud-value" id="shot-readout">Choose a shot</div></div>
         </div>
       </section>
       <section class="player-controls" aria-label="Player movement">
         <div><strong>PLAYER MOVEMENT</strong><span>Tap the arrows or use WASD / keyboard arrows</span></div>
         <div class="dpad"><button data-move="forward" aria-label="Move forward">▲</button><button data-move="left" aria-label="Move left">◀</button><button data-move="back" aria-label="Move back">▼</button><button data-move="right" aria-label="Move right">▶</button></div>
       </section>
+      <section class="shot-controls" aria-label="Badminton shot selection">
+        <div class="shot-heading"><strong>CHOOSE YOUR SHOT</strong><span>Tap a shot to hit the shuttle from your player</span></div>
+        <div class="shot-buttons">
+          <button data-shot="clear" class="shot-button">Clear</button>
+          <button data-shot="drop" class="shot-button">Drop</button>
+          <button data-shot="smash" class="shot-button">Smash</button>
+          <button data-shot="lift" class="shot-button">Lift</button>
+        </div>
+      </section>
       <section class="controls" aria-label="Physics controls">
-        <button class="primary" id="launch">Launch shuttle ↗</button>
+        <button class="primary" id="launch">Practice clear ↗</button>
         <button class="secondary" id="reset">Reset view</button>
         <label class="select-wrap" for="mode">Court ruleset
           <select id="mode"><option value="singles">Singles</option><option value="doubles">Doubles</option></select>
