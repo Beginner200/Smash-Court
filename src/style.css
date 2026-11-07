@@ -64,3 +64,11 @@ button:hover{filter:brightness(1.1);transform:translateY(-1px)}button:focus-visi
 .assist-panel span{color:#9bb4a8;font-size:11px}
 .dpad button{touch-action:none;user-select:none;-webkit-user-select:none;min-height:42px;font-size:17px}
 @media(max-width:640px){.dpad{grid-template-columns:repeat(3,48px);grid-template-rows:repeat(2,44px);gap:5px}.dpad button{min-height:44px;padding:3px}.player-controls{gap:8px}.player-controls span{max-width:145px}}
+
+
+.interval-panel{display:flex;align-items:center;justify-content:space-between;gap:14px;margin:0 0 13px;padding:12px 16px;border:1px solid #8a7540;border-radius:13px;background:linear-gradient(100deg,#302817,#1b2419)}
+.interval-panel[hidden]{display:none}
+.interval-panel strong{display:block;color:#f5d995;font-size:11px;letter-spacing:.13em}
+.interval-panel p{margin:4px 0 0;color:#c5b995;font-size:11px;line-height:1.4}
+.interval-panel>span{flex:none;color:#fff0bd;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
+@media(max-width:640px){.interval-panel{padding:10px 12px}.interval-panel>span{font-size:17px}.interval-panel p{max-width:205px}}
