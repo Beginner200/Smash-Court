@@ -125,6 +125,8 @@ let lastElapsed = 0;
 let flightSource: "player" | "ai" = "player";
 let aiReturnAttempted = false;
 let aiTarget: THREE.Vector3 | null = null;
+let matchScore: MatchScoreState = createMatchScore();
+let pointResolved = false;
 const clock = new THREE.Clock();
 
 function updateScoreboard() {
