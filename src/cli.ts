@@ -2,6 +2,7 @@ import { createMatch, resolveRally, scoreLabel, startNextGame, tickInterval } fr
 import type { MatchState, SideId } from "./index.js";
 
 function playPoint(state: MatchState, winner: SideId): MatchState {
+  if (state.phase === "interval" && state.interval) state = tickInterval(state,state.interval.remainingSeconds);
   return resolveRally(state, { kind: "POINT", winner, lawRef: "7.3", reason: `Side ${winner} won the rally.` });
 }
 
@@ -20,7 +21,6 @@ console.log("SMASH COURT 3D — RULES ENGINE TRANSCRIPT");
 console.log("Demo: deterministic sample points; not a simulated skill match.");
 for (let i = 0; i < 21; i++) match = playPoint(match, "A");
 console.log(`Game 1: ${scoreLabel(match.scores)} — winner ${match.lastGameWinner}`);
-match = tickInterval(match, 120);
 match = startNextGame(match, "A1", "B1");
 match = tickInterval(match, 120);
 for (let i = 0; i < 21; i++) match = playPoint(match, "B");
