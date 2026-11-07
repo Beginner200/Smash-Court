@@ -26,10 +26,45 @@ export function chooseAiReturnShot(player: Vec3): ShotType {
  * rallyIndex alternates the lateral corner when the player is near the middle,
  * keeping the behavior deterministic and straightforward to test.
  */
-export function chooseAiReturnPlan(player: Vec3, aiPosition: Vec3, rallyIndex = 0): AiReturnPlan {
-  if (![player.x, player.y, player.z, aiPosition.x, aiPosition.y, aiPosition.z, rallyIndex].every(Number.isFinite)) {
+export function chooseAiReturnPlan(
+  player: Vec3,
+  aiPosition: Vec3,
+  rallyIndex = 0,
+  partner?: Vec3,
+): AiReturnPlan {
+  const values = [player.x, player.y, player.z, aiPosition.x, aiPosition.y, aiPosition.z, rallyIndex];
+  if (partner) values.push(partner.x, partner.y, partner.z);
+  if (!values.every(Number.isFinite)) {
     throw new RangeError("AI strategy coordinates and rally index must be finite.");
   }
+
+  // Singles keeps its established behavior. In doubles, score a set of safe
+  // landing zones by how far each is from BOTH receivers, not just the human.
+  if (partner) {
+    const receivers = [player, partner];
+    const xs = [-2.45, -1.25, 0, 1.25, 2.45];
+    const zs = [0.95, 2.35, 4.05, 5.75];
+    let bestTarget = { x: 0, y: 0, z: 2.35 };
+    let bestScore = -Infinity;
+    for (const x of xs) {
+      for (const z of zs) {
+        const nearestReceiver = Math.min(...receivers.map(receiver =>
+          Math.hypot(x - receiver.x, z - receiver.z)
+        ));
+        // Slightly favor the front/back depth variation when several spaces
+        // are similarly open, while keeping every target safely in court.
+        const depthVariation = ((Math.floor(rallyIndex) + xs.indexOf(x) + zs.indexOf(z)) % 2) * 0.08;
+        const score = nearestReceiver + depthVariation;
+        if (score > bestScore) {
+          bestScore = score;
+          bestTarget = { x, y: 0, z };
+        }
+      }
+    }
+    const shotType: ShotType = bestTarget.z <= 2.35 ? "drop" : "clear";
+    return { shotType, target: bestTarget };
+  }
+
   const playerX = Math.max(-2.35, Math.min(2.35, player.x));
   const playerZ = Math.max(0.45, Math.min(6.25, player.z));
   const targetX = Math.abs(playerX) < 0.55
@@ -37,17 +72,14 @@ export function chooseAiReturnPlan(player: Vec3, aiPosition: Vec3, rallyIndex = 
     : playerX > 0 ? -1.75 : 1.75;
   const targetZ = playerZ > 3.45 ? 1.85 : 5.55;
   const shotType: ShotType = targetZ < 3 ? "drop" : "clear";
-  return {
-    shotType,
-    target: { x: targetX, y: 0, z: targetZ },
-  };
+  return { shotType, target: { x: targetX, y: 0, z: targetZ } };
 }
 
 /**
  * Aim the AI return at a chosen open-court target. A binary search calibrates
  * horizontal launch speed against the same drag model used by the live shuttle.
  */
-export function createAiReturnState(position: Vec3, playerTarget: Vec3, shotType: ShotType = "clear"): ShuttleState {
+export function createAiReturnState(position: Vec3, playerTarget: Vec3, shotType: ShotType = "clear", courtMode: "singles" | "doubles" = "singles"): ShuttleState {
   if (![position.x, position.y, position.z, playerTarget.x, playerTarget.y, playerTarget.z].every(Number.isFinite)) {
     throw new RangeError("AI return coordinates must be finite.");
   }
@@ -77,7 +109,7 @@ export function createAiReturnState(position: Vec3, playerTarget: Vec3, shotType
       y: profile.y,
       z: direction.z * speed,
     });
-    const flight = simulateTrajectory(candidate, DEFAULT_SHUTTLE_CONFIG);
+    const flight = simulateTrajectory(candidate, { ...DEFAULT_SHUTTLE_CONFIG, courtMode });
     const landing = flight.landing;
     if (landing) {
       const landedDistance = Math.hypot(landing.x - position.x, landing.z - position.z);
