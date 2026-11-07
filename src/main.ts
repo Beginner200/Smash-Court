@@ -4,7 +4,7 @@ import { buildCourtScene } from "./scene/court.js";
 import type { MatchMode } from "./rules/types.js";
 import { SHOT_PROFILES, createShotState, type ShotType } from "./physics/shots.js";
 import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult } from "./physics/shuttle.js";
-import { createAiReturnState, getAiLandingTarget } from "./physics/ai.js";
+import { chooseAiReturnShot, createAiReturnState, getAiLandingTarget } from "./physics/ai.js";
 import { canPlayerHitShuttle } from "./physics/hit-detection.js";
 import { awardRallyPoint, createMatchScore, type MatchScoreState, type MatchSide } from "./rules/match-scoring.js";
 import "./style.css";
@@ -300,12 +300,12 @@ function render() {
     if(activeSource === "player" && aiTarget && !aiReturnAttempted) {
       const target = new THREE.Vector3(aiTarget.x,0,aiTarget.z);
       const distance = opponent.position.distanceTo(target);
-      const step = 6.5 * Math.max(delta,0);
+      const step = 9 * Math.max(delta,0);
       if(distance > 0.04) opponent.position.lerp(target,Math.min(1,step/distance));
-      const returnMoment = Math.max(0.12,flightResult.durationSeconds * 0.76);
+      const returnMoment = Math.max(0.12,flightResult.durationSeconds * 0.82);
       if(elapsed >= returnMoment) {
         aiReturnAttempted=true;
-        if(opponent.position.distanceTo(target) <= 1.15) {
+        if(opponent.position.distanceTo(target) <= 1.35) {
           opponentReadout!.textContent="AI reached it · returning…";
           makeAiReturn();
           replacedFlight = true;
