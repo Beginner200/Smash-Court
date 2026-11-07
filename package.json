@@ -1,0 +1,19 @@
+{
+  "name": "smash-court-3d",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Smash Court 3D — BWF-grounded badminton rules engine and game foundation",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit",
+    "rules:demo": "tsx src/cli.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
