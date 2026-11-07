@@ -3,7 +3,7 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildCourtScene } from "./scene/court.js";
 import type { MatchMode } from "./rules/types.js";
 import { SHOT_PROFILES, createShotState, type ShotType } from "./physics/shots.js";
-import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult, type Vec3 } from "./physics/shuttle.js";
+import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult } from "./physics/shuttle.js";
 import { createAiReturnState, getAiLandingTarget } from "./physics/ai.js";
 import "./style.css";
 
@@ -191,9 +191,10 @@ function render() {
   const delta=clock.getDelta();
   controls.update();
   if(playing && result) {
+    const flightResult = result;
     const elapsed=clock.elapsedTime-animationStart;
-    const sampleIndex=Math.min(result.samples.length-1,Math.floor(elapsed/Math.max(result.durationSeconds,0.001)*(result.samples.length-1)));
-    const sample=result.samples[sampleIndex];
+    const sampleIndex=Math.min(flightResult.samples.length-1,Math.floor(elapsed/Math.max(flightResult.durationSeconds,0.001)*(flightResult.samples.length-1)));
+    const sample=flightResult.samples[sampleIndex];
     if(sample) {
       shuttle.position.set(sample.position.x,sample.position.y,sample.position.z);
       const velocity=new THREE.Vector3(sample.velocity.x,sample.velocity.y,sample.velocity.z);
@@ -204,7 +205,7 @@ function render() {
       const distance = opponent.position.distanceTo(target);
       const step = 6.5 * Math.max(delta,0);
       if(distance > 0.04) opponent.position.lerp(target,Math.min(1,step/distance));
-      const returnMoment = Math.max(0.12,result.durationSeconds * 0.76);
+      const returnMoment = Math.max(0.12,flightResult.durationSeconds * 0.76);
       if(elapsed >= returnMoment) {
         aiReturnAttempted=true;
         if(opponent.position.distanceTo(target) <= 1.15) {
@@ -216,7 +217,7 @@ function render() {
         }
       }
     }
-    if(elapsed>=result.durationSeconds) {
+    if(elapsed>=flightResult.durationSeconds) {
       playing=false;
       if(flightSource === "player" && aiTarget && aiReturnAttempted && opponentReadout!.textContent !== "AI reached it · returning…") {
         opponentReadout!.textContent="Ready for next rally";
