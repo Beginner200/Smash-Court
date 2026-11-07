@@ -3,7 +3,7 @@ import type { Vec3 } from "./shuttle.js";
 export interface PlayerRacketPosition extends Vec3 {}
 
 /** Reach measured from the player's approximate racket-hand position. */
-export const PLAYER_HIT_REACH_M = 1.25;
+export const PLAYER_HIT_REACH_M = 1.6;
 export const PLAYER_RACKET_HEIGHT_M = 0.9;
 
 /** True only when the shuttle is close enough and within a playable height. */
