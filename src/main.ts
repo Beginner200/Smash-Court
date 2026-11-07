@@ -193,7 +193,7 @@ function startFlight(initial: ReturnType<typeof createShuttleState>, label: stri
   playing=true;
 }
 function makeShot(type: ShotType = "clear") {
-  if (playing || matchScore.winner || pointResolved) return;
+  if (playing || matchScore.winner) return;
   const initial = createShotState(type, {
     x: player.position.x,
     y: 1.25,
