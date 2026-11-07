@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildCourtScene } from "./scene/court.js";
 import type { MatchMode } from "./rules/types.js";
+import { SHOT_PROFILES, createShotState, type ShotType } from "./physics/shots.js";
 import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult } from "./physics/shuttle.js";
 import "./style.css";
 
@@ -12,6 +13,7 @@ const timeReadout = document.querySelector<HTMLDivElement>("#time-readout");
 const modeSelect = document.querySelector<HTMLSelectElement>("#mode");
 const launchButton = document.querySelector<HTMLButtonElement>("#launch");
 const resetButton = document.querySelector<HTMLButtonElement>("#reset");
+const shotReadout = document.querySelector<HTMLDivElement>("#shot-readout");
 if (!mount) throw new Error("Missing #scene mount!.");
 if (!status) throw new Error("Missing #flight-status!.");
 if (!speedReadout) throw new Error("Missing #speed-readout.");
@@ -19,6 +21,7 @@ if (!timeReadout) throw new Error("Missing #time-readout.");
 if (!modeSelect) throw new Error("Missing #mode.");
 if (!launchButton) throw new Error("Missing #launch.");
 if (!resetButton) throw new Error("Missing #reset.");
+if (!shotReadout) throw new Error("Missing #shot-readout.");
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x07120f);
@@ -117,12 +120,16 @@ function clearTrajectory() {
   speedReadout!.textContent="—";
   timeReadout!.textContent="—";
 }
-function makeShot() {
+function makeShot(type: ShotType = "clear") {
   clearTrajectory();
   const mode: MatchMode = modeSelect!.value === "doubles" ? "doubles" : "singles";
   const config = { ...DEFAULT_SHUTTLE_CONFIG, courtMode:mode };
-  // Representative high clear from the near rear court toward the far rear court.
-  const initial = createShuttleState({x:0,y:2.25,z:-5.8},{x:0.7,y:12.2,z:30});
+  // Launch from just in front of the player toward the far court.
+  const initial = createShotState(type, {
+    x: player.position.x,
+    y: 1.25,
+    z: Math.max(0.65, player.position.z - 0.45),
+  });
   result = simulateTrajectory(initial,config);
   const points = result.samples.map(s=>new THREE.Vector3(s.position.x,s.position.y,s.position.z));
   const geometry = new THREE.BufferGeometry().setFromPoints(points);
@@ -130,7 +137,9 @@ function makeShot() {
   scene.add(trajectoryLine);
   shuttle.visible=true;
   shuttle.position.set(initial.position.x,initial.position.y,initial.position.z);
-  status!.textContent = result.end === "net" ? "NET CONTACT" : result.end === "out" ? "OUT — outside court" : "FLIGHT SIMULATED";
+  const endLabel = result.end === "net" ? "NET FAULT" : result.end === "out" ? "OUT" : result.end === "ground" ? "LANDED IN" : "FLIGHT TIMEOUT";
+  status!.textContent = `${SHOT_PROFILES[type].label.toUpperCase()} · ${endLabel}`;
+  shotReadout!.textContent = SHOT_PROFILES[type].description;
   speedReadout!.textContent = `${Math.round(metresPerSecondToKmh(magnitude(initial.velocity)))} km/h launch`;
   timeReadout!.textContent = `${result.durationSeconds.toFixed(2)} s · ${result.samples.length} steps`;
   animationStart=clock.elapsedTime;
@@ -142,7 +151,13 @@ function resize() {
   camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h,false);
 }
 const resizeObserver=new ResizeObserver(resize); resizeObserver.observe(mount); resize();
-launchButton.addEventListener("click",makeShot);
+launchButton.addEventListener("click",()=>makeShot("clear"));
+document.querySelectorAll<HTMLButtonElement>("[data-shot]").forEach(button => {
+  button.addEventListener("click", () => {
+    const shot = button.dataset.shot as ShotType | undefined;
+    if (shot && shot in SHOT_PROFILES) makeShot(shot);
+  });
+});
 resetButton.addEventListener("click",clearTrajectory);
 modeSelect!.addEventListener("change",()=>{ clearTrajectory(); });
 
