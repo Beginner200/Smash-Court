@@ -14,7 +14,7 @@
         <div class="phase">PHASE 03 · BASIC SHOTS</div>
       </header>
       <section class="intro">
-        <div><h2>Move and hit the shuttle</h2><p>Move around the near court, then choose Clear, Drop, Smash, or Lift. The AI tracks shots on its side and attempts a return. Drag to orbit and scroll to zoom.</p></div>
+        <div><h2>Move and hit the shuttle</h2><p>Move around the near court. When the AI returns the shuttle, get close to it and tap Clear, Drop, Smash, or Lift to hit it back. Drag to orbit and scroll to zoom.</p></div>
       </section>
       <section class="scoreboard" aria-label="Match score">
         <div class="score-side"><span class="score-label">YOU</span><strong id="score-player">0</strong><small>Games: <span id="games-player">0</span></small></div>
@@ -36,7 +36,7 @@
         <div class="dpad"><button data-move="forward" aria-label="Move forward">▲</button><button data-move="left" aria-label="Move left">◀</button><button data-move="back" aria-label="Move back">▼</button><button data-move="right" aria-label="Move right">▶</button></div>
       </section>
       <section class="shot-controls" aria-label="Badminton shot selection">
-        <div class="shot-heading"><strong>CHOOSE YOUR SHOT</strong><span>Tap a shot to hit the shuttle from your player</span></div>
+        <div class="shot-heading"><strong>CHOOSE YOUR SHOT</strong><span>Tap a shot when the shuttle is within your racket reach</span></div>
         <div class="shot-buttons">
           <button data-shot="clear" class="shot-button">Clear</button>
           <button data-shot="drop" class="shot-button">Drop</button>
@@ -53,7 +53,7 @@
         </label>
       </section>
       <div class="legend"><span><i class="dot"></i>Simulated flight path</span><span><i class="dot white"></i>Court & service lines</span><span><i class="dot gold"></i>Shuttlecock model</span></div>
-      <footer class="note">Scoring: each completed rally awards one point. Games are first to 21 with a two-point lead, capped at 30; the match is best of three. Rally resolution is currently automated after the AI return, pending manual shuttle-hit controls. Physics uses fixed 1/240-second steps for deterministic replay; aerodynamic values are initial tuning estimates, not laboratory-calibrated data. Court line decisions reuse the Phase 1 rules module.</footer>
+      <footer class="note">Scoring: each completed rally awards one point. Games are first to 21 with a two-point lead, capped at 30; the match is best of three. Player returns now require racket-range contact with the moving shuttle; AI interception and shot placement remain prototype behavior. Physics uses fixed 1/240-second steps for deterministic replay; aerodynamic values are initial tuning estimates, not laboratory-calibrated data. Court line decisions reuse the Phase 1 rules module.</footer>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
