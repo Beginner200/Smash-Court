@@ -4,7 +4,7 @@ import { buildCourtScene } from "./scene/court.js";
 import type { MatchMode } from "./rules/types.js";
 import { SHOT_PROFILES, createShotState, type ShotType } from "./physics/shots.js";
 import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult } from "./physics/shuttle.js";
-import { chooseAiReturnShot, createAiReturnState, getAiLandingTarget } from "./physics/ai.js";
+import { chooseAiReturnPlan, createAiReturnState, getAiLandingTarget } from "./physics/ai.js";
 import { canPlayerHitShuttle } from "./physics/hit-detection.js";
 import { awardRallyPoint, createMatchScore, type MatchScoreState, type MatchSide } from "./rules/match-scoring.js";
 import "./style.css";
@@ -161,6 +161,7 @@ let playing = false;
 let lastElapsed = 0;
 let flightSource: "player" | "ai" = "player";
 let aiReturnAttempted = false;
+let aiRallyIndex = 0;
 let aiTarget: THREE.Vector3 | null = null;
 let matchScore: MatchScoreState = createMatchScore();
 let pointResolved = false;
@@ -290,13 +291,10 @@ function makeShot(type: ShotType = "clear") {
   );
 }
 function makeAiReturn() {
-  const aiShot = chooseAiReturnShot(player.position);
-  const initial = createAiReturnState(
-    { x: opponent.position.x, y: 1.55, z: Math.min(-0.65, opponent.position.z + 0.35) },
-    { x: player.position.x, y: player.position.y, z: player.position.z },
-    aiShot,
-  );
-  startFlight(initial, `AI ${aiShot}`, `The opponent chose a ${aiShot} based on your court position.`, "ai");
+  const contactPosition = { x: opponent.position.x, y: 1.55, z: Math.min(-0.65, opponent.position.z + 0.35) };
+  const plan = chooseAiReturnPlan(player.position, contactPosition, aiRallyIndex++);
+  const initial = createAiReturnState(contactPosition, plan.target, plan.shotType);
+  startFlight(initial, `AI ${plan.shotType}`, `The opponent aimed for the open ${plan.target.x < 0 ? "left" : "right"}-${plan.target.z < 3 ? "front" : "back"} court.`, "ai");
 }
 function magnitude(v: {x:number;y:number;z:number}) { return Math.hypot(v.x,v.y,v.z); }
 function resize() {
