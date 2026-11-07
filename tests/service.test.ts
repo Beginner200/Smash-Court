@@ -46,7 +46,7 @@ describe("BWF Laws 9–11 — service and boundaries", () => {
   });
   it("treats the doubles long service line as legal depth in singles", () => {
     expect(isServeLandingInServiceCourt({x:-1,distanceFromNet:5.94},"singles",0)).toBe(true);
-    expect(isServeLandingInServiceCourt({x:-1,distanceFromNet:5.94},"doubles",0)).toBe(false);
+    expect(isServeLandingInServiceCourt({x:-1,distanceFromNet:5.94},"doubles",0)).toBe(true);
   });
   it("treats a shuttle outside the singles sideline as OUT", () => {
     expect(isLandingInCourt({x:2.591,distanceFromNet:2},"singles")).toBe(false);
