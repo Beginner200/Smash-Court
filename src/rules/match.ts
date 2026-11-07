@@ -24,7 +24,7 @@ export function resolveToss(
   }
   if (winnerChoice.kind === "end" && loserChoice.kind !== "end") {
     return {
-      firstServerSide: tossLoser,
+      firstServerSide: loserChoice.kind === "serve" ? tossLoser : tossWinner,
       ends: { [tossWinner]: winnerChoice.end, [tossLoser]: winnerChoice.end === "near" ? "far" : "near" }
     };
   }
