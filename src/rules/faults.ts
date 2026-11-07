@@ -8,7 +8,7 @@ export type InPlayEvent =
   | { kind: "ceiling-or-wall" }
   | { kind: "player-or-dress" }
   | { kind: "outside-object" }
-  | { kind: "double-hit"; samePlayer: boolean }
+  | { kind: "double-hit"; samePlayer: boolean; headAndStringSameStroke?: boolean }
   | { kind: "carried-or-slung" }
   | { kind: "net-touch"; playerOrRacket: boolean }
   | { kind: "opponent-court-invasion"; interferesOrTouchesNet: boolean }
@@ -22,7 +22,7 @@ export type InPlayEvent =
   | { kind: "serve-caught-on-net" }
   | { kind: "serve-caught-in-net-after-crossing" }
   | { kind: "receiver-partner-hit-serve" }
-  | { kind: "over-net-invasion"; strikerFollowThrough: boolean; initialContactOnOwnSide: boolean }
+  | { kind: "over-net-invasion"; racketFollowThrough: boolean; initialContactOnOwnSide: boolean }
   | { kind: "under-net-invasion"; obstructsOrDistracts: boolean }
   | { kind: "obstruction"; deliberate: boolean }
   | { kind: "racket-contact-no-forward-travel" };
@@ -49,6 +49,9 @@ export function classifyInPlayEvent(event: InPlayEvent, mode: MatchMode): Classi
     case "outside-object":
       return { kind: "FAULT", lawRef: "13.3.5", reason: "Shuttle touched an object or person outside the court." };
     case "double-hit":
+      if (event.headAndStringSameStroke) {
+        return { kind: "IN_PLAY", reason: "Head and string contacted the shuttle in one stroke; Law 13.3.7 exception applies." };
+      }
       return { kind: "FAULT", lawRef: event.samePlayer ? "13.3.7" : "13.3.8",
         reason: event.samePlayer ? "The same player hit the shuttle twice in succession." : "A player and their partner hit the shuttle successively." };
     case "carried-or-slung":
@@ -62,7 +65,7 @@ export function classifyInPlayEvent(event: InPlayEvent, mode: MatchMode): Classi
         ? { kind: "FAULT", lawRef: "13.4.3", reason: "Player invaded under the net and obstructed or distracted an opponent." }
         : { kind: "IN_PLAY", reason: "No under-net obstruction or distraction." };
     case "over-net-invasion":
-      return event.strikerFollowThrough && event.initialContactOnOwnSide
+      return event.racketFollowThrough && event.initialContactOnOwnSide
         ? { kind: "IN_PLAY", reason: "Permitted racket follow-through after initial contact on the striker's side." }
         : { kind: "FAULT", lawRef: "13.4.2", reason: "Player invaded the opponent's court over the net outside the permitted follow-through exception." };
     case "under-net-invasion":
@@ -94,6 +97,21 @@ export function classifyInPlayEvent(event: InPlayEvent, mode: MatchMode): Classi
     case "racket-contact-no-forward-travel":
       return { kind: "FAULT", lawRef: "13.3.9", reason: "Shuttle touched a player's racket but did not travel towards the opponent's court." };
   }
+}
+
+/** BWF Law 12.1: identify a wrong server/receiver or service court before applying Law 12.2. */
+export function detectServiceCourtError(snapshot: import("./types.js").ServiceCourtSnapshot): ServiceCourtError | null {
+  if (snapshot.actualServerId !== snapshot.expectedServerId) {
+    return { kind: "wrong-server", actualPlayerId: snapshot.actualServerId, description: "A player served out of turn." };
+  }
+  if (snapshot.actualReceiverId !== snapshot.expectedReceiverId) {
+    return { kind: "wrong-receiver", actualPlayerId: snapshot.actualReceiverId, description: "A player received out of turn." };
+  }
+  if (snapshot.actualServerCourt !== snapshot.expectedServerCourt ||
+      snapshot.actualReceiverCourt !== snapshot.expectedReceiverCourt) {
+    return { kind: "wrong-court", actualPlayerId: snapshot.actualServerId, description: "A player served or received from the wrong service court." };
+  }
+  return null;
 }
 
 /** BWF Law 12.2 (2025): correct the discovered error while shuttle is not in play; score stands. */
