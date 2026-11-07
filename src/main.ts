@@ -327,13 +327,15 @@ function awardPoint(winner: MatchSide, reason: string) {
   }
   updateBreakHud();
   nextRallyButton.disabled = !!matchBreak;
-  if (isDoublesMode()) doublesRotation = advanceDoublesRotation(doublesRotation, winner);
-  if (!matchScore.winner && matchScore.gameNumber !== previousGameNumber) {
-    switchCourtEnds();
-  } else {
-    updateDoublesFormation();
-  }
+  const gameChanged = !matchScore.winner && matchScore.gameNumber !== previousGameNumber;
   servingSide = winner;
+  if (isDoublesMode()) {
+    doublesRotation = gameChanged
+      ? { ...createDoublesRotation(), servingSide: winner }
+      : advanceDoublesRotation(doublesRotation, winner);
+  }
+  if (gameChanged) switchCourtEnds();
+  else updateDoublesFormation();
   rallyStarted = false;
   serveInProgress = false;
   updateServeReadout();
@@ -542,7 +544,7 @@ nextRallyButton.addEventListener("click",()=>{
 });
 updateScoreboard();
 updateServeReadout();
-modeSelect!.addEventListener("change",()=>{ clearTrajectory(); matchScore = createMatchScore(); matchBreak = null; midGameBreakUsed = false; updateBreakHud(); doublesRotation = createDoublesRotation(); servingSide = "player"; rallyStarted = false; pointResolved = false; nextRallyButton.disabled = true; updateScoreboard(); updateDoublesFormation(); updateServeReadout(); status!.textContent = isDoublesMode() ? "Doubles mode · service rotation ready" : "Singles mode · one player per side"; });
+modeSelect!.addEventListener("change",()=>{ clearTrajectory(); matchScore = createMatchScore(); matchBreak = null; midGameBreakUsed = false; updateBreakHud(); doublesRotation = createDoublesRotation(); playerEndSign = 1; camera.position.z = 15.5; controls.target.set(0, 0.9, 0); controls.update(); servingSide = "player"; rallyStarted = false; pointResolved = false; nextRallyButton.disabled = true; updateScoreboard(); updateDoublesFormation(); updateServeReadout(); status!.textContent = isDoublesMode() ? "Doubles mode · service rotation ready" : "Singles mode · one player per side"; });
 practiceAssist!.addEventListener("change", () => {
   contactReadout!.textContent = practiceAssist!.checked ? "Practice assist ON" : "Standard contact";
 });
