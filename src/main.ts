@@ -11,15 +11,19 @@ const timeReadout = document.querySelector<HTMLDivElement>("#time-readout");
 const modeSelect = document.querySelector<HTMLSelectElement>("#mode");
 const launchButton = document.querySelector<HTMLButtonElement>("#launch");
 const resetButton = document.querySelector<HTMLButtonElement>("#reset");
-if (!mount || !status || !speedReadout || !timeReadout || !modeSelect || !launchButton || !resetButton) {
-  throw new Error("Phase 2 interface is missing required elements.");
-}
+if (!mount) throw new Error("Missing #scene mount.");
+if (!status) throw new Error("Missing #flight-status.");
+if (!speedReadout) throw new Error("Missing #speed-readout.");
+if (!timeReadout) throw new Error("Missing #time-readout.");
+if (!modeSelect) throw new Error("Missing #mode.");
+if (!launchButton) throw new Error("Missing #launch.");
+if (!resetButton) throw new Error("Missing #reset.");
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x07120f);
 scene.fog = new THREE.Fog(0x07120f, 18, 42);
 const camera = new THREE.PerspectiveCamera(42,1,0.1,100);
-camera.position.set(0,8.5,-14.5);
+camera.position.set(0,10.5,15.5);
 const renderer = new THREE.WebGLRenderer({ antialias:true, powerPreference:"high-performance" });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio,2));
 renderer.shadowMap.enabled = true;
@@ -29,7 +33,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.12;
 mount.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera,renderer.domElement);
-controls.target.set(0,1.2,0);
+controls.target.set(0,0.9,0);
 controls.enableDamping = true;
 controls.maxPolarAngle = Math.PI * 0.48;
 controls.minDistance = 7;
@@ -47,6 +51,49 @@ arena.rotation.x=-Math.PI/2; arena.position.y=-0.1; arena.receiveShadow=true; sc
 const court = buildCourtScene();
 court.traverse(o=>{ if(o instanceof THREE.Mesh) { o.castShadow=true; o.receiveShadow=true; }});
 scene.add(court);
+
+// Phase 3: simple court avatars. The player starts on the near half.
+function makePlayer(color: number, name: string): THREE.Group {
+  const group = new THREE.Group();
+  group.name = name;
+  const body = new THREE.Mesh(new THREE.CapsuleGeometry(0.22, 0.72, 4, 8), new THREE.MeshStandardMaterial({ color, roughness: 0.72 }));
+  body.position.y = 0.62;
+  body.castShadow = true;
+  const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 12), new THREE.MeshStandardMaterial({ color: 0xf0c9a5, roughness: 0.8 }));
+  head.position.y = 1.18;
+  head.castShadow = true;
+  const racket = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.018, 6, 18), new THREE.MeshStandardMaterial({ color: 0xe9e4d4, metalness: 0.25 }));
+  racket.position.set(0.28, 0.8, -0.08);
+  racket.rotation.y = 0.25;
+  group.add(body, head, racket);
+  return group;
+}
+const player = makePlayer(0x39c58d, "human-player");
+player.position.set(0, 0, 4.8);
+scene.add(player);
+const opponent = makePlayer(0xe2a34a, "simple-ai-opponent");
+opponent.position.set(0, 0, -4.8);
+scene.add(opponent);
+const moveStep = 0.45;
+function movePlayer(dx: number, dz: number) {
+  player.position.x = THREE.MathUtils.clamp(player.position.x + dx, -2.35, 2.35);
+  player.position.z = THREE.MathUtils.clamp(player.position.z + dz, 0.45, 6.25);
+}
+document.querySelectorAll<HTMLButtonElement>("[data-move]").forEach(button => {
+  button.addEventListener("click", () => {
+    const direction = button.dataset.move;
+    if (direction === "left") movePlayer(-moveStep, 0);
+    if (direction === "right") movePlayer(moveStep, 0);
+    if (direction === "forward") movePlayer(0, -moveStep);
+    if (direction === "back") movePlayer(0, moveStep);
+  });
+});
+window.addEventListener("keydown", event => {
+  if (["ArrowLeft","a","A"].includes(event.key)) movePlayer(-moveStep, 0);
+  if (["ArrowRight","d","D"].includes(event.key)) movePlayer(moveStep, 0);
+  if (["ArrowUp","w","W"].includes(event.key)) movePlayer(0, -moveStep);
+  if (["ArrowDown","s","S"].includes(event.key)) movePlayer(0, moveStep);
+});
 
 const shuttle = new THREE.Group();
 const cork = new THREE.Mesh(new THREE.SphereGeometry(0.032,16,12),new THREE.MeshStandardMaterial({color:0xe8d8a6,roughness:0.7}));
