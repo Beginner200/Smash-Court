@@ -4,7 +4,7 @@ import { buildCourtScene } from "./scene/court.js";
 import type { MatchMode } from "./rules/types.js";
 import { SHOT_PROFILES, createShotState, type ShotType } from "./physics/shots.js";
 import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult } from "./physics/shuttle.js";
-import { chooseAiReturnPlan, createAiReturnState, createDoublesPartnerReturnState, getAiLandingTarget } from "./physics/ai.js";
+import { chooseAiReturnPlan, chooseDoublesPartnerShot, createAiReturnState, createDoublesPartnerReturnState, getAiLandingTarget } from "./physics/ai.js";
 import { canPlayerHitShuttle } from "./physics/hit-detection.js";
 import { assessShotContact } from "./physics/contact-quality.js";
 import { createServeState, evaluateServeFlight, type ServingSide } from "./physics/serve.js";
@@ -172,6 +172,7 @@ let playerSwingTimer = 0;
 let aiSwingTimer = 0;
 let partnerSwingTimer = 0;
 let partnerMoveTimer = 0;
+let partnerShotIndex = 0;
 let impactTimer = 0;
 let impactRing: THREE.Mesh | null = null;
 const moveStep = 0.28;
@@ -624,14 +625,15 @@ function render() {
           }
           const incoming = { x: sample.position.x, y: sample.position.y, z: sample.position.z };
           if (sample.position.z > 0.35 && canPlayerHitShuttle(playerPartner.position, incoming, 1.38)) {
-            const partnerShot = createDoublesPartnerReturnState(incoming);
+            const partnerShotType = chooseDoublesPartnerShot(incoming, sample.velocity, partnerShotIndex++);
+            const partnerShot = createDoublesPartnerReturnState(incoming, partnerShotType);
             partnerSwingTimer = 0.34;
-            contactReadout!.textContent = "AI PARTNER · INTERCEPT";
-            opponentReadout!.textContent = "Your partner intercepted the shuttle and returned it.";
+            contactReadout!.textContent = `AI PARTNER · ${partnerShotType.toUpperCase()}`;
+            opponentReadout!.textContent = `Your partner chose a ${partnerShotType} based on the incoming shuttle.`;
             startFlight(
               partnerShot,
-              "AI PARTNER CLEAR",
-              "Your AI teammate read the incoming shot, moved into position, and returned it.",
+              `AI PARTNER ${partnerShotType.toUpperCase()}`,
+              `Your AI teammate selected a ${partnerShotType} and aimed for a controlled landing.`,
               "player",
             );
             replacedFlight = true;
