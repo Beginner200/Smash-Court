@@ -19,8 +19,8 @@ export function resolveToss(
   tossWinner: SideId = "A"
 ): TossResolution {
   const tossLoser = otherSide(tossWinner);
-  if (winnerChoice.kind === loserChoice.kind) {
-    throw new Error("The toss winner and loser must take different options.");
+  if ((winnerChoice.kind === "end") === (loserChoice.kind === "end")) {
+    throw new Error("One side must choose serve/receive and the other must choose an end.");
   }
   if (winnerChoice.kind === "end" && loserChoice.kind !== "end") {
     return {
