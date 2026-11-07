@@ -62,7 +62,7 @@ describe("badminton shot presets", () => {
 });
 
 
-import { chooseAiReturnShot, createAiReturnState, getAiLandingTarget } from "../src/physics/ai.js";
+import { chooseAiReturnPlan, chooseAiReturnShot, createAiReturnState, getAiLandingTarget } from "../src/physics/ai.js";
 import { canPlayerHitShuttle } from "../src/physics/hit-detection.js";
 
 describe("basic AI opponent", () => {
@@ -73,12 +73,42 @@ describe("basic AI opponent", () => {
     expect(chooseAiReturnShot({ x: 0, y: 0, z: 1.2 })).toBe("clear");
     expect(chooseAiReturnShot({ x: 1.9, y: 0, z: 4 })).toBe("clear");
   });
+  it("chooses open space opposite the player's lateral position", () => {
+    const ai = { x: 0, y: 0, z: -4.5 };
+    const playerRight = chooseAiReturnPlan({ x: 1.8, y: 0, z: 3 }, ai, 0);
+    const playerLeft = chooseAiReturnPlan({ x: -1.8, y: 0, z: 3 }, ai, 0);
+    expect(playerRight.target.x).toBeLessThan(0);
+    expect(playerLeft.target.x).toBeGreaterThan(0);
+  });
+  it("alternates the target side when the player stays near the middle", () => {
+    const player = { x: 0, y: 0, z: 3 };
+    const ai = { x: 0, y: 0, z: -4.5 };
+    expect(chooseAiReturnPlan(player, ai, 0).target.x).toBeGreaterThan(0);
+    expect(chooseAiReturnPlan(player, ai, 1).target.x).toBeLessThan(0);
+  });
+  it("selects front-court drops against a deep player and back-court clears against a forward player", () => {
+    const ai = { x: 0, y: 0, z: -4.5 };
+    const deep = chooseAiReturnPlan({ x: 0, y: 0, z: 5.8 }, ai);
+    const forward = chooseAiReturnPlan({ x: 0, y: 0, z: 1.2 }, ai);
+    expect(deep.shotType).toBe("drop");
+    expect(deep.target.z).toBeLessThan(3);
+    expect(forward.shotType).toBe("clear");
+    expect(forward.target.z).toBeGreaterThan(3);
+  });
+  it("keeps strategic targets within the singles court width and player half", () => {
+    for (const x of [-2.35, 0, 2.35]) {
+      const plan = chooseAiReturnPlan({ x, y: 0, z: 3.2 }, { x: 0, y: 0, z: -4.5 });
+      expect(Math.abs(plan.target.x)).toBeLessThanOrEqual(2.4);
+      expect(plan.target.z).toBeGreaterThan(0);
+      expect(plan.target.z).toBeLessThan(6.7);
+    }
+  });
   it("rejects invalid player coordinates", () => {
     expect(() => chooseAiReturnShot({ x: 0, y: 0, z: Number.NaN })).toThrow(RangeError);
   });
   it("uses different flight profiles for clear and drop returns", () => {
     const position = { x: 0, y: 1.5, z: -4.5 };
-    expect(createAiReturnState(position, 0, "clear").velocity.y).toBeGreaterThan(createAiReturnState(position, 0, "drop").velocity.y);
+    expect(createAiReturnState(position, { x: 0, y: 0, z: 4.5 }, "clear").velocity.y).toBeGreaterThan(createAiReturnState(position, { x: 0, y: 0, z: 4.5 }, "drop").velocity.y);
   });
   it("creates a return shot that travels toward the player's half", () => {
     const shot = createAiReturnState({ x: 0.5, y: 1.5, z: -4.5 }, { x: -1, y: 0, z: 4.5 });
