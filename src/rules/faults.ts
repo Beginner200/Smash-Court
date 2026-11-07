@@ -11,7 +11,6 @@ export type InPlayEvent =
   | { kind: "double-hit"; samePlayer: boolean; headAndStringSameStroke?: boolean }
   | { kind: "carried-or-slung" }
   | { kind: "net-touch"; playerOrRacket: boolean }
-  | { kind: "opponent-court-invasion"; interferesOrTouchesNet: boolean }
   | { kind: "obstruction"; deliberate: boolean }
   | { kind: "obstructs-legal-stroke" }
   | { kind: "shuttle-disintegrates" }
@@ -24,7 +23,6 @@ export type InPlayEvent =
   | { kind: "receiver-partner-hit-serve" }
   | { kind: "over-net-invasion"; racketFollowThrough: boolean; initialContactOnOwnSide: boolean }
   | { kind: "under-net-invasion"; obstructsOrDistracts: boolean }
-  | { kind: "obstruction"; deliberate: boolean }
   | { kind: "racket-contact-no-forward-travel" };
 
 export type ClassifiedRallyEvent =
@@ -60,10 +58,6 @@ export function classifyInPlayEvent(event: InPlayEvent, mode: MatchMode): Classi
       return event.playerOrRacket
         ? { kind: "FAULT", lawRef: "13.4.1", reason: "Player or racket touched the net or its supports while shuttle was in play." }
         : { kind: "IN_PLAY", reason: "No net contact by player or racket." };
-    case "opponent-court-invasion":
-      return event.interferesOrTouchesNet
-        ? { kind: "FAULT", lawRef: "13.4.3", reason: "Player invaded under the net and obstructed or distracted an opponent." }
-        : { kind: "IN_PLAY", reason: "No under-net obstruction or distraction." };
     case "over-net-invasion":
       return event.racketFollowThrough && event.initialContactOnOwnSide
         ? { kind: "IN_PLAY", reason: "Permitted racket follow-through after initial contact on the striker's side." }
