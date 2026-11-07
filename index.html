@@ -19,7 +19,7 @@
       <section class="scoreboard" aria-label="Match score">
         <div class="score-side"><span class="score-label">YOU</span><strong id="score-player">0</strong><small>Games: <span id="games-player">0</span></small></div>
         <div class="score-center"><strong>VS</strong><span id="match-message">Best of 3 · First to 21, win by 2 (cap 30)</span><span id="serve-readout" class="serve-readout">YOU SERVE · RIGHT SERVICE COURT</span></div>
-        <div class="score-side opponent-score"><span class="score-label">AI OPPONENT</span><strong id="score-opponent">0</strong><small>Games: <span id="games-opponent">0</span></small></div>
+        <div class="score-side opponent-score"><span class="score-label">AI TEAM</span><strong id="score-opponent">0</strong><small>Games: <span id="games-opponent">0</span></small></div>
       </section>
       <section class="stage" aria-label="Interactive 3D badminton court">
         <div id="scene"></div>
@@ -37,7 +37,7 @@
         <div class="stamina-track" role="progressbar" aria-label="Stamina" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
           <div id="stamina-fill" class="stamina-fill"></div>
         </div>
-        <p>Moving uses stamina. Rest briefly to recover; low stamina reduces movement distance.</p>
+        <p>Moving uses stamina. Rest briefly to recover; low stamina reduces movement distance. In Doubles, your AI partner covers the opposite side while two opponents share the far court.</p>
       </section>
       <section class="assist-panel" aria-label="Practice assistance"><label><input id="practice-assist" type="checkbox" checked /> <strong>Practice assist</strong></label><span>Wider racket reach and more forgiving contact while you learn timing.</span></section>
       <section class="player-controls" aria-label="Player movement">
@@ -62,7 +62,7 @@
           <select id="difficulty"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
         </label>
         <label class="select-wrap" for="mode">Court ruleset
-          <select id="mode"><option value="singles">Singles</option><option value="doubles">Doubles</option></select>
+          <select id="mode"><option value="singles">Singles</option><option value="doubles">Doubles (2 vs 2)</option></select>
         </label>
       </section>
       <div class="legend"><span><i class="dot"></i>Simulated flight path</span><span><i class="dot white"></i>Court & service lines</span><span><i class="dot gold"></i>Shuttlecock model</span></div>
