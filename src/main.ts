@@ -11,6 +11,7 @@ import { createServeState, evaluateServeFlight, type ServingSide } from "./physi
 import { getServiceCourt } from "./rules/service.js";
 import { advanceDoublesRotation, createDoublesRotation, getDoublesServer, type DoublesPlayer, type DoublesRotationState } from "./rules/doubles-rotation.js";
 import { awardRallyPoint, createMatchScore, type MatchScoreState, type MatchSide } from "./rules/match-scoring.js";
+import { advanceMatchBreak, createMatchBreak, type MatchBreakState } from "./rules/match-breaks.js";
 import "./style.css";
 
 const mount = document.querySelector<HTMLDivElement>("#scene");
@@ -248,6 +249,8 @@ let aiRallyIndex = 0;
 let aiContactPlayer: THREE.Group;
 let aiTarget: THREE.Vector3 | null = null;
 let matchScore: MatchScoreState = createMatchScore();
+let matchBreak: MatchBreakState | null = null;
+let midGameBreakUsed = false;
 let pointResolved = false;
 let servingSide: ServingSide = "player";
 let rallyStarted = false;
@@ -272,14 +275,40 @@ function updateScoreboard() {
   playerGamesReadout!.textContent = String(matchScore.games.player);
   opponentGamesReadout!.textContent = String(matchScore.games.opponent);
 }
+function updateBreakHud() {
+  const panel = document.querySelector<HTMLElement>("#interval-panel");
+  const title = document.querySelector<HTMLElement>("#interval-title");
+  const countdown = document.querySelector<HTMLElement>("#interval-countdown");
+  const note = document.querySelector<HTMLElement>("#interval-note");
+  if (!panel || !title || !countdown || !note) return;
+  panel.hidden = !matchBreak;
+  if (!matchBreak) return;
+  const minutes = Math.floor(matchBreak.remainingSeconds / 60);
+  const seconds = Math.ceil(matchBreak.remainingSeconds % 60);
+  title.textContent = matchBreak.kind === "mid-game" ? "11-POINT INTERVAL" : "BETWEEN-GAMES INTERVAL";
+  countdown.textContent = `${String(minutes).padStart(2, "0")}:${String(seconds).padStart(2, "0")} remaining`;
+  note.textContent = matchBreak.kind === "mid-game"
+    ? "Official 60-second interval. The next rally unlocks when the countdown ends."
+    : "Official 120-second interval. Players change ends between games; the next rally unlocks when the countdown ends.";
+}
 function awardPoint(winner: MatchSide, reason: string) {
   if (pointResolved || matchScore.winner) return;
   pointResolved = true;
   nextRallyButton.disabled = false;
   rallyState = "point-over";
   playing = false;
+  const previousGameNumber = matchScore.gameNumber;
   matchScore = awardRallyPoint(matchScore, winner);
   updateScoreboard();
+  if (!matchScore.winner && matchScore.gameNumber !== previousGameNumber) {
+    matchBreak = createMatchBreak("between-games");
+    midGameBreakUsed = false;
+  } else if (!matchScore.winner && !midGameBreakUsed && Math.max(matchScore.points.player, matchScore.points.opponent) >= 11) {
+    matchBreak = createMatchBreak("mid-game");
+    midGameBreakUsed = true;
+  }
+  updateBreakHud();
+  nextRallyButton.disabled = !!matchBreak;
   if (isDoublesMode()) doublesRotation = advanceDoublesRotation(doublesRotation, winner);
   servingSide = winner;
   updateDoublesFormation();
@@ -299,6 +328,9 @@ function awardPoint(winner: MatchSide, reason: string) {
 }
 function newMatch() {
   matchScore = createMatchScore();
+  matchBreak = null;
+  midGameBreakUsed = false;
+  updateBreakHud();
   doublesRotation = createDoublesRotation();
   pointResolved = false;
   servingSide = "player";
@@ -460,7 +492,7 @@ resetButton.addEventListener("click",()=>{
 newMatchButton.addEventListener("click",newMatch);
 nextRallyButton.disabled = true;
 nextRallyButton.addEventListener("click",()=>{
-  if (!pointResolved || matchScore.winner) return;
+  if (!pointResolved || matchScore.winner || matchBreak) return;
   clearTrajectory();
   pointResolved = false;
   rallyStarted = false;
@@ -477,7 +509,7 @@ nextRallyButton.addEventListener("click",()=>{
 });
 updateScoreboard();
 updateServeReadout();
-modeSelect!.addEventListener("change",()=>{ clearTrajectory(); matchScore = createMatchScore(); doublesRotation = createDoublesRotation(); servingSide = "player"; rallyStarted = false; pointResolved = false; nextRallyButton.disabled = true; updateScoreboard(); updateDoublesFormation(); updateServeReadout(); status!.textContent = isDoublesMode() ? "Doubles mode · service rotation ready" : "Singles mode · one player per side"; });
+modeSelect!.addEventListener("change",()=>{ clearTrajectory(); matchScore = createMatchScore(); matchBreak = null; midGameBreakUsed = false; updateBreakHud(); doublesRotation = createDoublesRotation(); servingSide = "player"; rallyStarted = false; pointResolved = false; nextRallyButton.disabled = true; updateScoreboard(); updateDoublesFormation(); updateServeReadout(); status!.textContent = isDoublesMode() ? "Doubles mode · service rotation ready" : "Singles mode · one player per side"; });
 practiceAssist!.addEventListener("change", () => {
   contactReadout!.textContent = practiceAssist!.checked ? "Practice assist ON" : "Standard contact";
 });
@@ -490,6 +522,14 @@ difficultySelect!.addEventListener("change",()=>{
 function render() {
   requestAnimationFrame(render);
   const delta=clock.getDelta();
+  if (matchBreak) {
+    matchBreak = advanceMatchBreak(matchBreak, delta);
+    updateBreakHud();
+    if (!matchBreak && pointResolved && !matchScore.winner) {
+      nextRallyButton.disabled = false;
+      status!.textContent = "Interval complete · ready for the next rally";
+    }
+  }
   controls.update();
   const animateAvatar = (avatar: THREE.Group, swing: number, moving: number, phase: number) => {
     const rig = avatar.userData.rig as AvatarRig;
