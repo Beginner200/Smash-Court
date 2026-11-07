@@ -512,12 +512,9 @@ function render() {
   animateAvatar(opponent, aiSwingTimer, playing && flightSource === "player" && !!aiTarget ? 0.24 : 0, Math.PI);
   animateAvatar(playerPartner, 0, 0, Math.PI / 2);
   animateAvatar(opponentPartner, 0, playing && flightSource === "player" && !!aiTarget && isDoublesMode() ? 0.24 : 0, Math.PI * 1.5);
-  if (isDoublesMode() && playing && flightSource === "ai") {
-    const partnerTargetX = player.position.x > 0 ? -1.35 : 1.35;
-    const partnerTargetZ = shuttle.position.z > 3.2 ? 3.7 : 4.9;
-    playerPartner.position.x = THREE.MathUtils.damp(playerPartner.position.x, partnerTargetX, 2.8, delta);
-    playerPartner.position.z = THREE.MathUtils.damp(playerPartner.position.z, partnerTargetZ, 2.8, delta);
-  }
+  // During an incoming AI flight, the partner actively chases the live shuttle
+  // and can make an automatic return when it enters racket reach.
+
   if (isDoublesMode() && playing && flightSource === "player" && aiTarget) {
     const chasing = opponentPartner.position.distanceTo(aiTarget) < opponent.position.distanceTo(aiTarget) ? opponentPartner : opponent;
     const cover = chasing === opponent ? opponentPartner : opponent;
@@ -551,7 +548,38 @@ function render() {
       if(velocity.lengthSq()>0.0001) shuttle.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),velocity.normalize());
     }
     let replacedFlight = false;
-    if(activeSource === "player" && aiTarget && !aiReturnAttempted) {
+    if (isDoublesMode() && activeSource === "ai" && !flightWasServe && sample) {
+      const partnerTarget = new THREE.Vector3(
+        THREE.MathUtils.clamp(sample.position.x, -2.35, 2.35),
+        0,
+        THREE.MathUtils.clamp(sample.position.z, 0.45, 6.25),
+      );
+      const distanceToShuttle = playerPartner.position.distanceTo(partnerTarget);
+      const partnerStep = 12.5 * Math.max(delta, 0);
+      if (distanceToShuttle > 0.03) {
+        playerPartner.position.lerp(partnerTarget, Math.min(1, partnerStep / distanceToShuttle));
+        playerPartner.rotation.y = THREE.MathUtils.damp(
+          playerPartner.rotation.y,
+          Math.atan2(sample.position.x - playerPartner.position.x, sample.position.z - playerPartner.position.z),
+          8,
+          delta,
+        );
+      }
+      const incoming = { x: sample.position.x, y: sample.position.y, z: sample.position.z };
+      if (canPlayerHitShuttle(playerPartner.position, incoming, 2.0)) {
+        const partnerShot = createShotState("clear", incoming);
+        contactReadout!.textContent = "AI PARTNER · AUTOMATIC RETURN";
+        opponentReadout!.textContent = "Your partner reached the shuttle and returned it!";
+        startFlight(
+          partnerShot,
+          "AI PARTNER CLEAR",
+          "Your AI teammate intercepted the incoming shuttle and sent it back to the opponents.",
+          "player",
+        );
+        replacedFlight = true;
+      }
+    }
+    if(!replacedFlight && activeSource === "player" && aiTarget && !aiReturnAttempted) {
       const target = new THREE.Vector3(aiTarget.x,0,aiTarget.z);
       const difficulty = difficultySelect!.value;
       const activeOpponent = isDoublesMode() && opponentPartner.position.distanceTo(target) < opponent.position.distanceTo(target) ? opponentPartner : opponent;
