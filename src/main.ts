@@ -133,8 +133,10 @@ const moveStep = 0.45;
 function updateStaminaHud() {
   const fill = document.querySelector<HTMLDivElement>("#stamina-fill");
   const value = document.querySelector<HTMLSpanElement>("#stamina-value");
+  const track = document.querySelector<HTMLDivElement>(".stamina-track");
   if (!fill || !value) return;
   const percent = Math.round(playerStamina);
+  if (track) track.setAttribute("aria-valuenow", String(percent));
   fill.style.width = `${percent}%`;
   fill.classList.toggle("low", percent <= 25);
   value.textContent = `${percent}%`;
