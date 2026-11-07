@@ -1,7 +1,7 @@
 import { addPoint, getGameWinner, serviceCourtForScore } from "./scoring.js";
 import type {
   CreateMatchOptions, DecisionLogEntry, MatchState, SideId, TossChoice,
-  TossResolution, UmpireDecision, ServiceCourt, PlayerId, Scores
+  TossResolution, UmpireDecision, ServiceCourt, PlayerId, Scores, SideEnds
 } from "./types.js";
 
 function otherSide(side: SideId): SideId { return side === "A" ? "B" : "A"; }
@@ -24,8 +24,8 @@ export function resolveToss(
   }
   if (winnerChoice.kind === "end" && loserChoice.kind !== "end") {
     const winnerEnd = winnerChoice.end;
-    const loserEnd = winnerEnd === "near" ? "far" : "near";
-    const ends = tossWinner === "A"
+    const loserEnd: "near" | "far" = winnerEnd === "near" ? "far" : "near";
+    const ends: SideEnds = tossWinner === "A"
       ? { A: winnerEnd, B: loserEnd }
       : { A: loserEnd, B: winnerEnd };
     return {
@@ -38,8 +38,8 @@ export function resolveToss(
   }
   if (loserChoice.kind === "end") {
     const loserEnd = loserChoice.end;
-    const winnerEnd = loserEnd === "near" ? "far" : "near";
-    const ends = tossWinner === "A"
+    const winnerEnd: "near" | "far" = loserEnd === "near" ? "far" : "near";
+    const ends: SideEnds = tossWinner === "A"
       ? { A: winnerEnd, B: loserEnd }
       : { A: loserEnd, B: winnerEnd };
     return {
