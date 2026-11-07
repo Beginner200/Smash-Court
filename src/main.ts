@@ -3,7 +3,8 @@ import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildCourtScene } from "./scene/court.js";
 import type { MatchMode } from "./rules/types.js";
 import { SHOT_PROFILES, createShotState, type ShotType } from "./physics/shots.js";
-import { DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult } from "./physics/shuttle.js";
+import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult, type Vec3 } from "./physics/shuttle.js";
+import { createAiReturnState, getAiLandingTarget } from "./physics/ai.js";
 import "./style.css";
 
 const mount = document.querySelector<HTMLDivElement>("#scene");
@@ -14,6 +15,7 @@ const modeSelect = document.querySelector<HTMLSelectElement>("#mode");
 const launchButton = document.querySelector<HTMLButtonElement>("#launch");
 const resetButton = document.querySelector<HTMLButtonElement>("#reset");
 const shotReadout = document.querySelector<HTMLDivElement>("#shot-readout");
+const opponentReadout = document.querySelector<HTMLDivElement>("#opponent-readout");
 if (!mount) throw new Error("Missing #scene mount!.");
 if (!status) throw new Error("Missing #flight-status!.");
 if (!speedReadout) throw new Error("Missing #speed-readout.");
@@ -22,6 +24,7 @@ if (!modeSelect) throw new Error("Missing #mode.");
 if (!launchButton) throw new Error("Missing #launch.");
 if (!resetButton) throw new Error("Missing #reset.");
 if (!shotReadout) throw new Error("Missing #shot-readout.");
+if (!opponentReadout) throw new Error("Missing #opponent-readout.");
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x07120f);
@@ -111,39 +114,61 @@ let result: TrajectoryResult | null = null;
 let animationStart = 0;
 let playing = false;
 let lastElapsed = 0;
+let flightSource: "player" | "ai" = "player";
+let aiReturnAttempted = false;
+let aiTarget: THREE.Vector3 | null = null;
 const clock = new THREE.Clock();
 
 function clearTrajectory() {
   if(trajectoryLine) { scene.remove(trajectoryLine); trajectoryLine.geometry.dispose(); trajectoryLine=null; }
   shuttle.visible=false; result=null; playing=false; lastElapsed=0;
+  aiTarget=null; aiReturnAttempted=false; flightSource="player";
+  opponentReadout!.textContent="Waiting for your shot";
   status!.textContent="Ready to launch";
   speedReadout!.textContent="—";
   timeReadout!.textContent="—";
 }
-function makeShot(type: ShotType = "clear") {
+function startFlight(initial: ReturnType<typeof createShuttleState>, label: string, description: string, source: "player" | "ai") {
   clearTrajectory();
+  flightSource=source;
   const mode: MatchMode = modeSelect!.value === "doubles" ? "doubles" : "singles";
   const config = { ...DEFAULT_SHUTTLE_CONFIG, courtMode:mode };
-  // Launch from just in front of the player toward the far court.
+  result = simulateTrajectory(initial,config);
+  const points = result.samples.map(s=>new THREE.Vector3(s.position.x,s.position.y,s.position.z));
+  const geometry = new THREE.BufferGeometry().setFromPoints(points);
+  const color = source === "ai" ? 0xffc477 : 0x75e6c2;
+  trajectoryLine = new THREE.Line(geometry,new THREE.LineBasicMaterial({color,transparent:true,opacity:0.88}));
+  scene.add(trajectoryLine);
+  shuttle.visible=true;
+  shuttle.position.set(initial.position.x,initial.position.y,initial.position.z);
+  const endLabel = result.end === "net" ? "NET FAULT" : result.end === "out" ? "OUT" : result.end === "ground" ? "LANDED IN" : "FLIGHT TIMEOUT";
+  status!.textContent = `${label.toUpperCase()} · ${endLabel}`;
+  shotReadout!.textContent = description;
+  speedReadout!.textContent = `${Math.round(metresPerSecondToKmh(magnitude(initial.velocity)))} km/h launch`;
+  timeReadout!.textContent = `${result.durationSeconds.toFixed(2)} s · ${result.samples.length} steps`;
+  aiTarget = source === "player" ? (() => {
+    const target = getAiLandingTarget(result!);
+    return target ? new THREE.Vector3(target.x,0,target.z) : null;
+  })() : null;
+  aiReturnAttempted=false;
+  opponentReadout!.textContent = source === "player" && aiTarget ? "Tracking shuttle…" : source === "ai" ? "Returned the shuttle" : "No return needed";
+  animationStart=clock.elapsedTime;
+  playing=true;
+}
+function makeShot(type: ShotType = "clear") {
   const initial = createShotState(type, {
     x: player.position.x,
     y: 1.25,
     z: Math.max(0.65, player.position.z - 0.45),
   });
-  result = simulateTrajectory(initial,config);
-  const points = result.samples.map(s=>new THREE.Vector3(s.position.x,s.position.y,s.position.z));
-  const geometry = new THREE.BufferGeometry().setFromPoints(points);
-  trajectoryLine = new THREE.Line(geometry,new THREE.LineBasicMaterial({color:0x75e6c2,transparent:true,opacity:0.88}));
-  scene.add(trajectoryLine);
-  shuttle.visible=true;
-  shuttle.position.set(initial.position.x,initial.position.y,initial.position.z);
-  const endLabel = result.end === "net" ? "NET FAULT" : result.end === "out" ? "OUT" : result.end === "ground" ? "LANDED IN" : "FLIGHT TIMEOUT";
-  status!.textContent = `${SHOT_PROFILES[type].label.toUpperCase()} · ${endLabel}`;
-  shotReadout!.textContent = SHOT_PROFILES[type].description;
-  speedReadout!.textContent = `${Math.round(metresPerSecondToKmh(magnitude(initial.velocity)))} km/h launch`;
-  timeReadout!.textContent = `${result.durationSeconds.toFixed(2)} s · ${result.samples.length} steps`;
-  animationStart=clock.elapsedTime;
-  playing=true;
+  startFlight(initial, SHOT_PROFILES[type].label, SHOT_PROFILES[type].description, "player");
+}
+function makeAiReturn() {
+  const initial = createAiReturnState(
+    { x: opponent.position.x, y: 1.55, z: Math.min(-0.65, opponent.position.z + 0.35) },
+    player.position.x,
+  );
+  startFlight(initial, "AI return", "The opponent reached the shuttle and sent it back toward your side.", "ai");
 }
 function magnitude(v: {x:number;y:number;z:number}) { return Math.hypot(v.x,v.y,v.z); }
 function resize() {
@@ -174,7 +199,29 @@ function render() {
       const velocity=new THREE.Vector3(sample.velocity.x,sample.velocity.y,sample.velocity.z);
       if(velocity.lengthSq()>0.0001) shuttle.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),velocity.normalize());
     }
-    if(elapsed>=result.durationSeconds) playing=false;
+    if(flightSource === "player" && aiTarget && !aiReturnAttempted) {
+      const target = new THREE.Vector3(aiTarget.x,0,aiTarget.z);
+      const distance = opponent.position.distanceTo(target);
+      const step = 6.5 * Math.max(delta,0);
+      if(distance > 0.04) opponent.position.lerp(target,Math.min(1,step/distance));
+      const returnMoment = Math.max(0.12,result.durationSeconds * 0.76);
+      if(elapsed >= returnMoment) {
+        aiReturnAttempted=true;
+        if(opponent.position.distanceTo(target) <= 1.15) {
+          opponentReadout!.textContent="AI reached it · returning…";
+          makeAiReturn();
+        } else {
+          opponentReadout!.textContent="AI missed the shuttle";
+          status!.textContent="AI MISSED · POINT TO PLAYER";
+        }
+      }
+    }
+    if(elapsed>=result.durationSeconds) {
+      playing=false;
+      if(flightSource === "player" && aiTarget && aiReturnAttempted && opponentReadout!.textContent !== "AI reached it · returning…") {
+        opponentReadout!.textContent="Ready for next rally";
+      }
+    }
   }
   renderer.render(scene,camera);
 }
