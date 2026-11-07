@@ -13,6 +13,7 @@ export type InPlayEvent =
   | { kind: "net-touch"; playerOrRacket: boolean }
   | { kind: "opponent-court-invasion"; interferesOrTouchesNet: boolean }
   | { kind: "obstruction"; deliberate: boolean }
+  | { kind: "obstructs-legal-stroke" }
   | { kind: "shuttle-disintegrates" }
   | { kind: "unforeseen-circumstance" }
   | { kind: "shuttle-caught-on-net-during-rally" }
@@ -68,6 +69,8 @@ export function classifyInPlayEvent(event: InPlayEvent, mode: MatchMode): Classi
       return event.obstructsOrDistracts
         ? { kind: "FAULT", lawRef: "13.4.3", reason: "Player invaded under the net and obstructed or distracted an opponent." }
         : { kind: "IN_PLAY", reason: "Under-net invasion did not obstruct or distract an opponent." };
+    case "obstructs-legal-stroke":
+      return { kind: "FAULT", lawRef: "13.4.4", reason: "Player obstructed an opponent and prevented a legal stroke." };
     case "obstruction":
       return event.deliberate
         ? { kind: "FAULT", lawRef: "13.4.5", reason: "Player deliberately distracted an opponent by shouting or gestures." }
