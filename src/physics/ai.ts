@@ -94,3 +94,57 @@ export function createAiReturnState(position: Vec3, playerTarget: Vec3, shotType
   }
   return best;
 }
+
+
+/**
+ * Calibrate the doubles partner's return to land safely in the opponent's
+ * half-court. This avoids using the full-strength generic clear profile,
+ * which can carry beyond the back boundary when the partner contacts deep.
+ */
+export function createDoublesPartnerReturnState(position: Vec3): ShuttleState {
+  if (![position.x, position.y, position.z].every(Number.isFinite)) {
+    throw new RangeError("Partner return position must be finite.");
+  }
+
+  const target = {
+    x: Math.max(-1.3, Math.min(1.3, -position.x * 0.25)),
+    z: -4.6,
+  };
+  const dx = target.x - position.x;
+  const dz = target.z - position.z;
+  const distance = Math.hypot(dx, dz);
+  const direction = { x: dx / distance, z: dz / distance };
+  const launchHeight = 8;
+  let low = 6;
+  let high = 42;
+  let best = createShuttleState(position, {
+    x: direction.x * 18,
+    y: launchHeight,
+    z: direction.z * 18,
+  });
+  let bestError = Number.POSITIVE_INFINITY;
+
+  for (let i = 0; i < 24; i++) {
+    const speed = (low + high) / 2;
+    const candidate = createShuttleState(position, {
+      x: direction.x * speed,
+      y: launchHeight,
+      z: direction.z * speed,
+    });
+    const flight = simulateTrajectory(candidate, DEFAULT_SHUTTLE_CONFIG);
+    const landing = flight.landing;
+    if (landing) {
+      const landedDistance = Math.hypot(landing.x - position.x, landing.z - position.z);
+      const error = Math.abs(landedDistance - distance);
+      if (flight.end === "ground" && landing.z < 0 && error < bestError) {
+        best = candidate;
+        bestError = error;
+      }
+      if (landedDistance < distance) low = speed;
+      else high = speed;
+    } else {
+      high = speed;
+    }
+  }
+  return best;
+}
