@@ -101,50 +101,85 @@ export function createAiReturnState(position: Vec3, playerTarget: Vec3, shotType
  * half-court. This avoids using the full-strength generic clear profile,
  * which can carry beyond the back boundary when the partner contacts deep.
  */
-export function createDoublesPartnerReturnState(position: Vec3): ShuttleState {
+/**
+ * Select a doubles partner return from the incoming contact situation.
+ * Low contacts are lifted, high attacking contacts are smashed, front-court
+ * contacts are dropped, and neutral contacts are played deep as clears.
+ */
+export function chooseDoublesPartnerShot(
+  position: Vec3,
+  incomingVelocity: Vec3,
+  rallyIndex = 0,
+): ShotType {
+  if (![position.x, position.y, position.z, incomingVelocity.x, incomingVelocity.y, incomingVelocity.z, rallyIndex].every(Number.isFinite)) {
+    throw new RangeError("Partner shot selection inputs must be finite.");
+  }
+  if (position.y <= 1.08 || (position.y <= 1.38 && incomingVelocity.y < -6.5)) return "lift";
+  if (position.y >= 1.9 && incomingVelocity.y < 0) return "smash";
+  if (position.z <= 2.65 && position.y >= 1.25) return "drop";
+  // In neutral mid-court exchanges, vary the safe deep return occasionally.
+  return Math.floor(rallyIndex) % 3 === 2 ? "lift" : "clear";
+}
+
+/**
+ * Calibrate a partner return for its chosen shot type. Each profile has its
+ * own trajectory and landing target, while candidate speeds are checked with
+ * the doubles court width and the same shuttle-flight model used in play.
+ */
+export function createDoublesPartnerReturnState(
+  position: Vec3,
+  shotType: ShotType = "clear",
+): ShuttleState {
   if (![position.x, position.y, position.z].every(Number.isFinite)) {
     throw new RangeError("Partner return position must be finite.");
   }
 
+  const profile: Record<ShotType, { targetZ: number; launchY: number }> = {
+    clear: { targetZ: -5.35, launchY: 10.5 },
+    drop: { targetZ: -1.45, launchY: 5.2 },
+    smash: { targetZ: -3.35, launchY: -1.2 },
+    lift: { targetZ: -5.8, launchY: 14.5 },
+  };
+  const selected = profile[shotType];
   const target = {
-    x: Math.max(-1.3, Math.min(1.3, -position.x * 0.25)),
-    z: -4.6,
+    x: Math.max(-2.65, Math.min(2.65, -position.x * 0.28)),
+    z: selected.targetZ,
   };
   const dx = target.x - position.x;
   const dz = target.z - position.z;
   const distance = Math.hypot(dx, dz);
+  if (distance < 0.01 || dz >= 0) {
+    return createShuttleState(position, { x: 0, y: 8, z: -18 });
+  }
   const direction = { x: dx / distance, z: dz / distance };
-  const launchHeight = 8;
-  let low = 6;
-  let high = 42;
-  let best = createShuttleState(position, {
-    x: direction.x * 18,
-    y: launchHeight,
-    z: direction.z * 18,
-  });
+  const doublesConfig = { ...DEFAULT_SHUTTLE_CONFIG, courtMode: "doubles" as const };
+  let best: ShuttleState | null = null;
   let bestError = Number.POSITIVE_INFINITY;
 
-  for (let i = 0; i < 24; i++) {
-    const speed = (low + high) / 2;
+  // A bounded speed sweep is more reliable than assuming every shot type has
+  // the same monotonic launch-speed/landing-distance relationship.
+  for (let i = 0; i <= 32; i++) {
+    const speed = 7 + i * 0.95;
     const candidate = createShuttleState(position, {
       x: direction.x * speed,
-      y: launchHeight,
+      y: selected.launchY,
       z: direction.z * speed,
     });
-    const flight = simulateTrajectory(candidate, DEFAULT_SHUTTLE_CONFIG);
+    const flight = simulateTrajectory(candidate, doublesConfig);
     const landing = flight.landing;
-    if (landing) {
-      const landedDistance = Math.hypot(landing.x - position.x, landing.z - position.z);
-      const error = Math.abs(landedDistance - distance);
-      if (flight.end === "ground" && landing.z < 0 && error < bestError) {
-        best = candidate;
-        bestError = error;
-      }
-      if (landedDistance < distance) low = speed;
-      else high = speed;
-    } else {
-      high = speed;
+    if (flight.end !== "ground" || !landing || landing.z >= 0 || Math.abs(landing.x) > 3.1) continue;
+    const error = Math.hypot(landing.x - target.x, landing.z - target.z);
+    if (error < bestError) {
+      best = candidate;
+      bestError = error;
     }
   }
-  return best;
+
+  // If a particularly awkward contact cannot support the selected profile,
+  // safely fall back to a calibrated clear instead of sending a wild shot.
+  if (!best && shotType !== "clear") return createDoublesPartnerReturnState(position, "clear");
+  if (best) return best;
+
+  // Last-resort safe forward return for unusual edge-of-court contacts.
+  return createShuttleState(position, { x: 0, y: 8, z: -18 });
 }
