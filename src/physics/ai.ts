@@ -25,6 +25,6 @@ export function createAiReturnState(position: Vec3, playerX = 0, shotType: ShotT
   // The earlier profiles lost nearly all forward speed to shuttle drag and
   // landed beside the net. These lower, longer profiles reach the player's half
   // at a playable height and give the player time to move into racket range.
-  const profile = shotType === "drop" ? { y: 5, z: 24 } : { y: 8, z: 28 };
+  const profile = shotType === "drop" ? { y: 6, z: 24 } : { y: 8, z: 28 };
   return createShuttleState(position, { x: lateral, y: profile.y, z: profile.z });
 }
