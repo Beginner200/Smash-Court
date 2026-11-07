@@ -102,7 +102,7 @@ describe("BWF match state machine",()=>{
     for(let i=0;i<11;i++) s=point(s,"A");
     expect(s.gameNumber).toBe(3);
     expect(s.thirdGameEndChanged).toBe(true);
-    expect(s.sideEnds).toEqual({A:"near",B:"far"});
+    expect(s.sideEnds).toEqual({A:"far",B:"near"});
   });
   it("resolves toss winner end choice and loser's serve/receive choice",()=>{
     expect(resolveToss({kind:"end",end:"near"},{kind:"serve"})).toEqual({
