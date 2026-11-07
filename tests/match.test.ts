@@ -39,13 +39,16 @@ describe("BWF match state machine",()=>{
     expect(s.serverId).toBe("A1");
     expect(currentServiceCourt(s)).toBe("left");
   });
-  it("passes service to opponent whose own score determines court",()=>{
+  it("passes service back to the opponent and uses that side's own score parity",()=>{
     let s=singles();
     for(let i=0;i<8;i++) s=point(s,"A");
     for(let i=0;i<5;i++) s=point(s,"B");
-    s=point(s,"B");
-    expect(s.serverId).toBe("B1");
+    s=point(s,"A"); // A regains service at 9–5 (odd: left).
+    expect(s.serverId).toBe("A1");
     expect(currentServiceCourt(s)).toBe("left");
+    s=point(s,"B"); // B scores to 6 (even: right).
+    expect(s.serverId).toBe("B1");
+    expect(currentServiceCourt(s)).toBe("right");
   });
   it("implements doubles service order and keeps same server on a winning run",()=>{
     let s=doubles();
