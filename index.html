@@ -31,6 +31,13 @@
           <div class="hud-card ai-card"><div class="hud-label">AI opponent</div><div class="hud-value" id="opponent-readout">Waiting for your shot</div></div>
         </div>
       </section>
+      <section class="stamina-panel" aria-label="Player stamina">
+        <div class="stamina-heading"><strong>PLAYER STAMINA</strong><span id="stamina-value">100%</span></div>
+        <div class="stamina-track" role="progressbar" aria-label="Stamina" aria-valuemin="0" aria-valuemax="100" aria-valuenow="100">
+          <div id="stamina-fill" class="stamina-fill"></div>
+        </div>
+        <p>Moving uses stamina. Rest briefly to recover; low stamina reduces movement distance.</p>
+      </section>
       <section class="player-controls" aria-label="Player movement">
         <div><strong>PLAYER MOVEMENT</strong><span>Tap the arrows or use WASD / keyboard arrows</span></div>
         <div class="dpad"><button data-move="forward" aria-label="Move forward">▲</button><button data-move="left" aria-label="Move left">◀</button><button data-move="back" aria-label="Move back">▼</button><button data-move="right" aria-label="Move right">▶</button></div>
