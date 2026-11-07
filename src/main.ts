@@ -5,6 +5,7 @@ import type { MatchMode } from "./rules/types.js";
 import { SHOT_PROFILES, createShotState, type ShotType } from "./physics/shots.js";
 import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult } from "./physics/shuttle.js";
 import { createAiReturnState, getAiLandingTarget } from "./physics/ai.js";
+import { awardRallyPoint, createMatchScore, type MatchScoreState, type MatchSide } from "./rules/match-scoring.js";
 import "./style.css";
 
 const mount = document.querySelector<HTMLDivElement>("#scene");
@@ -16,6 +17,12 @@ const launchButton = document.querySelector<HTMLButtonElement>("#launch");
 const resetButton = document.querySelector<HTMLButtonElement>("#reset");
 const shotReadout = document.querySelector<HTMLDivElement>("#shot-readout");
 const opponentReadout = document.querySelector<HTMLDivElement>("#opponent-readout");
+const playerScoreReadout = document.querySelector<HTMLSpanElement>("#score-player");
+const opponentScoreReadout = document.querySelector<HTMLSpanElement>("#score-opponent");
+const playerGamesReadout = document.querySelector<HTMLSpanElement>("#games-player");
+const opponentGamesReadout = document.querySelector<HTMLSpanElement>("#games-opponent");
+const matchMessage = document.querySelector<HTMLDivElement>("#match-message");
+const newMatchButton = document.querySelector<HTMLButtonElement>("#new-match");
 if (!mount) throw new Error("Missing #scene mount!.");
 if (!status) throw new Error("Missing #flight-status!.");
 if (!speedReadout) throw new Error("Missing #speed-readout.");
@@ -25,6 +32,7 @@ if (!launchButton) throw new Error("Missing #launch.");
 if (!resetButton) throw new Error("Missing #reset.");
 if (!shotReadout) throw new Error("Missing #shot-readout.");
 if (!opponentReadout) throw new Error("Missing #opponent-readout.");
+if (!playerScoreReadout || !opponentScoreReadout || !playerGamesReadout || !opponentGamesReadout || !matchMessage || !newMatchButton) throw new Error("Missing match scoreboard controls.");
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x07120f);
@@ -119,10 +127,10 @@ let aiReturnAttempted = false;
 let aiTarget: THREE.Vector3 | null = null;
 const clock = new THREE.Clock();
 
-function clearTrajectory() {
+function updateScoreboard() {\n  playerScoreReadout!.textContent = String(matchScore.points.player);\n  opponentScoreReadout!.textContent = String(matchScore.points.opponent);\n  playerGamesReadout!.textContent = String(matchScore.games.player);\n  opponentGamesReadout!.textContent = String(matchScore.games.opponent);\n}\nfunction awardPoint(winner: MatchSide, reason: string) {\n  if (pointResolved || matchScore.winner) return;\n  pointResolved = true;\n  matchScore = awardRallyPoint(matchScore, winner);\n  updateScoreboard();\n  if (matchScore.winner) {\n    matchMessage!.textContent = `${matchScore.winner === "player" ? "YOU WIN" : "AI WINS"} THE MATCH · ${reason}`;\n    status!.textContent = matchMessage!.textContent;\n  } else if (matchScore.points.player === 0 && matchScore.points.opponent === 0 && (matchScore.games.player + matchScore.games.opponent) > 0) {\n    matchMessage!.textContent = `Game ${matchScore.gameNumber} · ${winner === "player" ? "You" : "AI"} won the previous game`;\n    status!.textContent = `GAME ${matchScore.gameNumber - 1} WON`;\n  } else {\n    matchMessage!.textContent = `${winner === "player" ? "Point to you" : "Point to AI"} · ${reason}`;\n    status!.textContent = matchMessage!.textContent;\n  }\n}\nfunction newMatch() {\n  matchScore = createMatchScore();\n  pointResolved = false;\n  updateScoreboard();\n  matchMessage!.textContent = "Best of 3 · First to 21, win by 2 (cap 30)";\n  clearTrajectory();\n}\nfunction clearTrajectory() {
   if(trajectoryLine) { scene.remove(trajectoryLine); trajectoryLine.geometry.dispose(); trajectoryLine=null; }
   shuttle.visible=false; result=null; playing=false; lastElapsed=0;
-  aiTarget=null; aiReturnAttempted=false; flightSource="player";
+  aiTarget=null; aiReturnAttempted=false; flightSource="player"; pointResolved=false;
   opponentReadout!.textContent="Waiting for your shot";
   status!.textContent="Ready to launch";
   speedReadout!.textContent="—";
@@ -155,7 +163,7 @@ function startFlight(initial: ReturnType<typeof createShuttleState>, label: stri
   animationStart=clock.elapsedTime;
   playing=true;
 }
-function makeShot(type: ShotType = "clear") {
+function makeShot(type: ShotType = "clear") {\n  if (playing || matchScore.winner || pointResolved) return;
   const initial = createShotState(type, {
     x: player.position.x,
     y: 1.25,
@@ -183,7 +191,7 @@ document.querySelectorAll<HTMLButtonElement>("[data-shot]").forEach(button => {
     if (shot && shot in SHOT_PROFILES) makeShot(shot);
   });
 });
-resetButton.addEventListener("click",clearTrajectory);
+resetButton.addEventListener("click",clearTrajectory);\nnewMatchButton.addEventListener("click",newMatch);\nupdateScoreboard();
 modeSelect!.addEventListener("change",()=>{ clearTrajectory(); });
 
 function render() {
