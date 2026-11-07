@@ -14,11 +14,11 @@
         <div class="phase">PHASE 03 · BASIC SHOTS</div>
       </header>
       <section class="intro">
-        <div><h2>Move and hit the shuttle</h2><p>Move around the near court. Return the AI shot when it comes within racket reach. The rally ends when a shot lands out, hits the net, or a player misses. Tap Next rally after a point.</p></div>
+        <div><h2>Move and hit the shuttle</h2><p>Serve diagonally into the opposite service court to start each rally. The rally winner serves next; the service court changes with that server’s score. Return the AI serve when it comes within racket reach. Tap Next rally after a point.</p></div>
       </section>
       <section class="scoreboard" aria-label="Match score">
         <div class="score-side"><span class="score-label">YOU</span><strong id="score-player">0</strong><small>Games: <span id="games-player">0</span></small></div>
-        <div class="score-center"><strong>VS</strong><span id="match-message">Best of 3 · First to 21, win by 2 (cap 30)</span></div>
+        <div class="score-center"><strong>VS</strong><span id="match-message">Best of 3 · First to 21, win by 2 (cap 30)</span><span id="serve-readout" class="serve-readout">YOU SERVE · RIGHT SERVICE COURT</span></div>
         <div class="score-side opponent-score"><span class="score-label">AI OPPONENT</span><strong id="score-opponent">0</strong><small>Games: <span id="games-opponent">0</span></small></div>
       </section>
       <section class="stage" aria-label="Interactive 3D badminton court">
@@ -54,7 +54,7 @@
         </div>
       </section>
       <section class="controls" aria-label="Physics controls">
-        <button class="primary" id="launch">Practice clear ↗</button>
+        <button class="primary" id="launch">Serve ↗</button>
         <button class="secondary" id="reset">Reset view</button>
         <button class="secondary" id="new-match">New match</button>
         <button class="secondary" id="next-rally" disabled>Next rally</button>
@@ -66,7 +66,7 @@
         </label>
       </section>
       <div class="legend"><span><i class="dot"></i>Simulated flight path</span><span><i class="dot white"></i>Court & service lines</span><span><i class="dot gold"></i>Shuttlecock model</span></div>
-      <footer class="note">Scoring: each completed rally awards one point. Games are first to 21 with a two-point lead, capped at 30; the match is best of three. Player returns now require racket-range contact with the moving shuttle; AI difficulty changes opponent movement speed, interception timing, reach, and (on Hard) shot placement. AI movement and shot selection remain prototype decisions, not full human-like badminton strategy. Physics uses fixed 1/240-second steps for deterministic replay; aerodynamic values are initial tuning estimates, not laboratory-calibrated data. Court line decisions reuse the Phase 1 rules module.</footer>
+      <footer class="note">Scoring: each completed rally awards one point. Games are first to 21 with a two-point lead, capped at 30; the match is best of three. Serve starts each rally from the score-selected diagonal service court. The rally winner serves next; AI serves automatically when it is the AI’s turn. Service height and landing box are checked by the Phase 1 rules engine. Player returns require racket-range contact with the moving shuttle; AI difficulty changes opponent movement speed, interception timing, reach, and (on Hard) shot placement. AI movement and shot selection remain prototype decisions, not full human-like badminton strategy. Physics uses fixed 1/240-second steps for deterministic replay; aerodynamic values are initial tuning estimates, not laboratory-calibrated data. Court line decisions reuse the Phase 1 rules module.</footer>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
