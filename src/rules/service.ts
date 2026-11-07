@@ -38,8 +38,11 @@ export function evaluateService(observation: ServiceObservation): ServiceEvaluat
   if (!observation.continuousForwardMovement) {
     return { kind: "FAULT", lawRef: "9.1.7", reason: "Racket did not continue forwards from service start until delivery." };
   }
+  if (!observation.flightUpwards || !observation.wouldLandInCorrectServiceCourt) {
+    return { kind: "FAULT", lawRef: "9.1.8", reason: "Service flight was not upwards over the net toward the correct diagonal service court." };
+  }
   if (observation.missedShuttle) {
-    return { kind: "FAULT", lawRef: "9.1.8", reason: "Server missed the shuttle while attempting to serve." };
+    return { kind: "FAULT", lawRef: "9.1.9", reason: "Server missed the shuttle while attempting to serve." };
   }
   return { kind: "LEGAL", lawRef: "9.1", reason: "Correct service" };
 }
