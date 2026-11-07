@@ -128,10 +128,12 @@ export type ServiceEvaluation =
   | { kind: "LET"; lawRef: "14.2.1" | "14.2.2"; reason: string };
 
 export interface LandingPoint {
-  /** Lateral position in metres, measured from the court centre line. */
+  /** Shuttle contact centre, lateral metres from the court centre line. */
   x: number;
-  /** Distance in metres from the net toward the server's back boundary. */
+  /** Shuttle contact centre distance in metres from the net toward the back boundary. */
   distanceFromNet: number;
+  /** Effective contact footprint radius; set from the measured shuttle contact patch. */
+  footprintRadiusM?: number;
 }
 
 export interface ServiceCourtError {
