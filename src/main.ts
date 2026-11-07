@@ -20,6 +20,7 @@ const launchButton = document.querySelector<HTMLButtonElement>("#launch");
 const resetButton = document.querySelector<HTMLButtonElement>("#reset");
 const shotReadout = document.querySelector<HTMLDivElement>("#shot-readout");
 const contactReadout = document.querySelector<HTMLDivElement>("#contact-readout");
+const practiceAssist = document.querySelector<HTMLInputElement>("#practice-assist");
 const opponentReadout = document.querySelector<HTMLDivElement>("#opponent-readout");
 const playerScoreReadout = document.querySelector<HTMLSpanElement>("#score-player");
 const opponentScoreReadout = document.querySelector<HTMLSpanElement>("#score-opponent");
@@ -38,6 +39,7 @@ if (!launchButton) throw new Error("Missing #launch.");
 if (!resetButton) throw new Error("Missing #reset.");
 if (!shotReadout) throw new Error("Missing #shot-readout.");
 if (!contactReadout) throw new Error("Missing #contact-readout.");
+if (!practiceAssist) throw new Error("Missing #practice-assist.");
 if (!opponentReadout) throw new Error("Missing #opponent-readout.");
 if (!playerScoreReadout || !opponentScoreReadout || !playerGamesReadout || !opponentGamesReadout || !matchMessage || !newMatchButton || !nextRallyButton) throw new Error("Missing match scoreboard controls.");
 
@@ -132,7 +134,8 @@ let playerSwingTimer = 0;
 let aiSwingTimer = 0;
 let impactTimer = 0;
 let impactRing: THREE.Mesh | null = null;
-const moveStep = 0.45;
+const moveStep = 0.28;
+const HOLD_MOVE_INTERVAL_MS = 105;
 function updateStaminaHud() {
   const fill = document.querySelector<HTMLDivElement>("#stamina-fill");
   const value = document.querySelector<HTMLSpanElement>("#stamina-value");
@@ -157,14 +160,29 @@ function movePlayer(dx: number, dz: number) {
   updateStaminaHud();
   playerMoveTimer = 0.24;
 }
+function moveInDirection(direction: string | undefined) {
+  if (direction === "left") movePlayer(-moveStep, 0);
+  if (direction === "right") movePlayer(moveStep, 0);
+  if (direction === "forward") movePlayer(0, -moveStep);
+  if (direction === "back") movePlayer(0, moveStep);
+}
+// Press once for a small step, or hold a direction to keep moving smoothly.
 document.querySelectorAll<HTMLButtonElement>("[data-move]").forEach(button => {
-  button.addEventListener("click", () => {
-    const direction = button.dataset.move;
-    if (direction === "left") movePlayer(-moveStep, 0);
-    if (direction === "right") movePlayer(moveStep, 0);
-    if (direction === "forward") movePlayer(0, -moveStep);
-    if (direction === "back") movePlayer(0, moveStep);
+  let holdTimer: number | undefined;
+  const stop = () => {
+    if (holdTimer !== undefined) window.clearInterval(holdTimer);
+    holdTimer = undefined;
+  };
+  button.addEventListener("pointerdown", event => {
+    event.preventDefault();
+    stop();
+    moveInDirection(button.dataset.move);
+    holdTimer = window.setInterval(() => moveInDirection(button.dataset.move), HOLD_MOVE_INTERVAL_MS);
   });
+  for (const eventName of ["pointerup", "pointerleave", "pointercancel"]) {
+    button.addEventListener(eventName, stop);
+  }
+  button.addEventListener("contextmenu", event => event.preventDefault());
 });
 window.addEventListener("keydown", event => {
   if (["ArrowLeft","a","A"].includes(event.key)) movePlayer(-moveStep, 0);
@@ -290,7 +308,8 @@ function makeShot(type: ShotType = "clear") {
   let launchPosition: THREE.Vector3;
   if (isReturn) {
     const shuttlePosition = { x: shuttle.position.x, y: shuttle.position.y, z: shuttle.position.z };
-    if (!canPlayerHitShuttle(player.position, shuttlePosition)) {
+    const hitReach = practiceAssist!.checked ? 2.25 : undefined;
+    if (!canPlayerHitShuttle(player.position, shuttlePosition, hitReach)) {
       status!.textContent = "TOO FAR · MOVE CLOSER TO HIT";
       opponentReadout!.textContent = "Shuttle is outside your racket reach";
       return;
@@ -304,7 +323,7 @@ function makeShot(type: ShotType = "clear") {
     );
   }
 
-  const contact = assessShotContact(player.position, launchPosition);
+  const contact = assessShotContact(player.position, launchPosition, practiceAssist!.checked ? 2.25 : undefined);
   const initial = createShotState(type, {
     x: launchPosition.x,
     y: launchPosition.y,
@@ -364,6 +383,9 @@ nextRallyButton.addEventListener("click",()=>{
 });
 updateScoreboard();
 modeSelect!.addEventListener("change",()=>{ clearTrajectory(); });
+practiceAssist!.addEventListener("change", () => {
+  contactReadout!.textContent = practiceAssist!.checked ? "Practice assist ON" : "Standard contact";
+});
 difficultySelect!.addEventListener("change",()=>{
   clearTrajectory();
   const level = difficultySelect!.value;
