@@ -9,6 +9,7 @@ import { canPlayerHitShuttle } from "./physics/hit-detection.js";
 import { assessShotContact } from "./physics/contact-quality.js";
 import { createServeState, evaluateServeFlight, type ServingSide } from "./physics/serve.js";
 import { getServiceCourt } from "./rules/service.js";
+import { advanceDoublesRotation, createDoublesRotation, getDoublesServer, type DoublesPlayer, type DoublesRotationState } from "./rules/doubles-rotation.js";
 import { awardRallyPoint, createMatchScore, type MatchScoreState, type MatchSide } from "./rules/match-scoring.js";
 import "./style.css";
 
@@ -136,16 +137,26 @@ scene.add(playerPartner);
 const opponentPartner = makePlayer(0xc77a36, "ai-opponent-2");
 opponentPartner.position.set(1.35, 0, -4.85);
 scene.add(opponentPartner);
+let doublesRotation: DoublesRotationState = createDoublesRotation();
 function isDoublesMode() { return modeSelect!.value === "doubles"; }
+function doublesServer(side: "player" | "opponent"): DoublesPlayer {
+  return getDoublesServer(doublesRotation, side, matchScore.points[side]);
+}
 function updateDoublesFormation() {
   const doubles = isDoublesMode();
   playerPartner.visible = doubles;
   opponentPartner.visible = doubles;
   if (doubles) {
-    player.position.set(-1.35, 0, 4.85);
-    playerPartner.position.set(1.35, 0, 4.85);
-    opponent.position.set(-1.35, 0, -4.85);
-    opponentPartner.position.set(1.35, 0, -4.85);
+    const playerRight = doublesRotation.playerRight === "human" ? player : playerPartner;
+    const playerLeft = playerRight === player ? playerPartner : player;
+    const opponentRight = doublesRotation.opponentRight === "opponent1" ? opponent : opponentPartner;
+    const opponentLeft = opponentRight === opponent ? opponentPartner : opponent;
+    const playerServerIsRight = doublesServer("player") === doublesRotation.playerRight;
+    const opponentServerIsRight = doublesServer("opponent") === doublesRotation.opponentRight;
+    playerRight.position.set(0.78, 0, playerServerIsRight ? 5.8 : 4.25);
+    playerLeft.position.set(-0.78, 0, playerServerIsRight ? 4.25 : 5.8);
+    opponentRight.position.set(-0.78, 0, opponentServerIsRight ? -5.8 : -4.25);
+    opponentLeft.position.set(0.78, 0, opponentServerIsRight ? -4.25 : -5.8);
   } else {
     player.position.set(0, 0, 4.8);
     playerPartner.position.set(0, 0, 4.8);
@@ -243,12 +254,15 @@ let rallyState: "ready" | "player-flight" | "ai-flight" | "point-over" = "ready"
 const clock = new THREE.Clock();
 
 function updateServeReadout() {
-  const sideName = servingSide === "player" ? "YOU SERVE" : "AI SERVES";
   const score = matchScore.points[servingSide];
   const court = getServiceCourt(score).toUpperCase();
-  serveReadout!.textContent = `${sideName} · ${court} SERVICE COURT · SERVER SCORE ${score}`;
-  launchButton!.disabled = servingSide !== "player" || rallyStarted || !!matchScore.winner || pointResolved;
-  launchButton!.textContent = servingSide === "player" ? "Serve ↗" : "AI will serve";
+  const server = isDoublesMode() ? doublesServer(servingSide) : null;
+  const humanServing = servingSide === "player" && (!isDoublesMode() || server === "human");
+  const serverName = servingSide === "opponent" ? (server === "opponent2" ? "AI PARTNER SERVES" : "AI SERVES")
+    : server === "partner" ? "YOUR PARTNER SERVES" : "YOU SERVE";
+  serveReadout!.textContent = `${isDoublesMode() ? serverName : servingSide === "player" ? "YOU SERVE" : "AI SERVES"} · ${court} SERVICE COURT · TEAM SCORE ${score}`;
+  launchButton!.disabled = !humanServing || rallyStarted || !!matchScore.winner || pointResolved;
+  launchButton!.textContent = humanServing ? "Serve ↗" : servingSide === "player" && server === "partner" ? "Partner will serve" : "AI will serve";
 }
 function updateScoreboard() {
   playerScoreReadout!.textContent = String(matchScore.points.player);
@@ -264,7 +278,9 @@ function awardPoint(winner: MatchSide, reason: string) {
   playing = false;
   matchScore = awardRallyPoint(matchScore, winner);
   updateScoreboard();
+  if (isDoublesMode()) doublesRotation = advanceDoublesRotation(doublesRotation, winner);
   servingSide = winner;
+  updateDoublesFormation();
   rallyStarted = false;
   serveInProgress = false;
   updateServeReadout();
@@ -281,6 +297,7 @@ function awardPoint(winner: MatchSide, reason: string) {
 }
 function newMatch() {
   matchScore = createMatchScore();
+  doublesRotation = createDoublesRotation();
   pointResolved = false;
   servingSide = "player";
   rallyStarted = false;
@@ -400,7 +417,10 @@ function makeServe(server: ServingSide) {
     return;
   }
   const court = getServiceCourt(serverScore).toUpperCase();
-  startFlight(initial, server === "player" ? "Your serve" : "AI serve", `Legal diagonal serve from the ${court.toLowerCase()} service court.`, server === "player" ? "player" : "ai");
+  const servingPlayer = isDoublesMode() ? doublesServer(server) : null;
+  const serverLabel = server === "opponent" ? (servingPlayer === "opponent2" ? "AI partner serve" : "AI serve")
+    : servingPlayer === "partner" ? "Your partner's serve" : "Your serve";
+  startFlight(initial, serverLabel, `Legal diagonal serve from the ${court.toLowerCase()} service court.`, server === "player" ? "player" : "ai");
   serveInProgress = true;
   rallyStarted = true;
   serveReadout!.textContent = `${server === "player" ? "YOUR SERVE" : "AI SERVE"} · ${court} SERVICE COURT`;
@@ -449,11 +469,13 @@ nextRallyButton.addEventListener("click",()=>{
   status!.textContent = "Ready · serve to begin the next rally";
   nextRallyButton.disabled = true;
   updateServeReadout();
+  updateDoublesFormation();
   if (servingSide === "opponent") makeServe("opponent");
+  else if (isDoublesMode() && doublesServer("player") === "partner") makeServe("player");
 });
 updateScoreboard();
 updateServeReadout();
-modeSelect!.addEventListener("change",()=>{ clearTrajectory(); updateDoublesFormation(); status!.textContent = isDoublesMode() ? "Doubles mode · four players on court" : "Singles mode · one player per side"; });
+modeSelect!.addEventListener("change",()=>{ clearTrajectory(); doublesRotation = createDoublesRotation(); servingSide = "player"; rallyStarted = false; pointResolved = false; nextRallyButton.disabled = true; updateDoublesFormation(); updateServeReadout(); status!.textContent = isDoublesMode() ? "Doubles mode · service rotation ready" : "Singles mode · one player per side"; });
 practiceAssist!.addEventListener("change", () => {
   contactReadout!.textContent = practiceAssist!.checked ? "Practice assist ON" : "Standard contact";
 });
@@ -490,10 +512,19 @@ function render() {
   animateAvatar(opponent, aiSwingTimer, playing && flightSource === "player" && !!aiTarget ? 0.24 : 0, Math.PI);
   animateAvatar(playerPartner, 0, 0, Math.PI / 2);
   animateAvatar(opponentPartner, 0, playing && flightSource === "player" && !!aiTarget && isDoublesMode() ? 0.24 : 0, Math.PI * 1.5);
-  if (isDoublesMode()) {
-    // The player's AI partner holds the opposite half of the near court.
-    playerPartner.position.x = THREE.MathUtils.damp(playerPartner.position.x, player.position.x > 0 ? -1.35 : 1.35, 3, delta);
-    playerPartner.position.z = THREE.MathUtils.damp(playerPartner.position.z, 4.9, 3, delta);
+  if (isDoublesMode() && playing && flightSource === "ai") {
+    const partnerTargetX = player.position.x > 0 ? -1.35 : 1.35;
+    const partnerTargetZ = shuttle.position.z > 3.2 ? 3.7 : 4.9;
+    playerPartner.position.x = THREE.MathUtils.damp(playerPartner.position.x, partnerTargetX, 2.8, delta);
+    playerPartner.position.z = THREE.MathUtils.damp(playerPartner.position.z, partnerTargetZ, 2.8, delta);
+  }
+  if (isDoublesMode() && playing && flightSource === "player" && aiTarget) {
+    const chasing = aiContactPlayer;
+    const cover = chasing === opponent ? opponentPartner : opponent;
+    const coverX = chasing.position.x > 0 ? -1.25 : 1.25;
+    const coverZ = aiTarget.z < -3.2 ? -3.7 : -4.9;
+    cover.position.x = THREE.MathUtils.damp(cover.position.x, coverX, 2.2, delta);
+    cover.position.z = THREE.MathUtils.damp(cover.position.z, coverZ, 2.2, delta);
   }
   if (impactRing && impactTimer > 0) {
     impactTimer = Math.max(0, impactTimer - delta);
