@@ -169,6 +169,8 @@ let playerStamina = 100;
 const MAX_PLAYER_STAMINA = 100;
 let playerSwingTimer = 0;
 let aiSwingTimer = 0;
+let partnerSwingTimer = 0;
+let partnerMoveTimer = 0;
 let impactTimer = 0;
 let impactRing: THREE.Mesh | null = null;
 const moveStep = 0.28;
@@ -499,7 +501,7 @@ function render() {
     rig.leftLeg.rotation.x = gait * 0.42;
     rig.rightLeg.rotation.x = -gait * 0.42;
     rig.body.position.y = 0.62 + Math.abs(gait) * 0.025 + swingPose * 0.035;
-    avatar.rotation.y = THREE.MathUtils.damp(avatar.rotation.y, swing > 0 ? -0.18 : 0, 8, delta);
+  
   };
   playerMoveTimer = Math.max(0, playerMoveTimer - delta);
   if (playerMoveTimer === 0 && playerStamina < MAX_PLAYER_STAMINA) {
@@ -508,13 +510,12 @@ function render() {
   }
   playerSwingTimer = Math.max(0, playerSwingTimer - delta);
   aiSwingTimer = Math.max(0, aiSwingTimer - delta);
+  partnerSwingTimer = Math.max(0, partnerSwingTimer - delta);
+  partnerMoveTimer = Math.max(0, partnerMoveTimer - delta);
   animateAvatar(player, playerSwingTimer, playerMoveTimer, 0);
   animateAvatar(opponent, aiSwingTimer, playing && flightSource === "player" && !!aiTarget ? 0.24 : 0, Math.PI);
-  animateAvatar(playerPartner, 0, 0, Math.PI / 2);
+  animateAvatar(playerPartner, partnerSwingTimer, partnerMoveTimer, Math.PI / 2);
   animateAvatar(opponentPartner, 0, playing && flightSource === "player" && !!aiTarget && isDoublesMode() ? 0.24 : 0, Math.PI * 1.5);
-  // During an incoming AI flight, the partner actively chases the live shuttle
-  // and can make an automatic return when it enters racket reach.
-
   if (isDoublesMode() && playing && flightSource === "player" && aiTarget) {
     const chasing = opponentPartner.position.distanceTo(aiTarget) < opponent.position.distanceTo(aiTarget) ? opponentPartner : opponent;
     const cover = chasing === opponent ? opponentPartner : opponent;
@@ -548,35 +549,67 @@ function render() {
       if(velocity.lengthSq()>0.0001) shuttle.quaternion.setFromUnitVectors(new THREE.Vector3(0,0,1),velocity.normalize());
     }
     let replacedFlight = false;
-    if (isDoublesMode() && activeSource === "ai" && !flightWasServe && sample) {
-      const partnerTarget = new THREE.Vector3(
-        THREE.MathUtils.clamp(sample.position.x, -2.35, 2.35),
-        0,
-        THREE.MathUtils.clamp(sample.position.z, 0.45, 6.25),
+    if (isDoublesMode() && activeSource === "ai" && sample) {
+      // Read ahead in the simulated flight and move toward the first realistic
+      // descending contact point on our half, rather than chasing the shuttle's
+      // instantaneous position across the court.
+      const interceptSample = flightResult.samples.slice(sampleIndex + 1).find((candidate) =>
+        candidate.position.z > 0.35 &&
+        candidate.position.y >= 0.75 &&
+        candidate.position.y <= 2.35 &&
+        candidate.velocity.y < -0.2 &&
+        candidate.velocity.z > 0,
       );
-      const distanceToShuttle = playerPartner.position.distanceTo(partnerTarget);
-      const partnerStep = 12.5 * Math.max(delta, 0);
-      if (distanceToShuttle > 0.03) {
-        playerPartner.position.lerp(partnerTarget, Math.min(1, partnerStep / distanceToShuttle));
-        playerPartner.rotation.y = THREE.MathUtils.damp(
-          playerPartner.rotation.y,
-          Math.atan2(sample.position.x - playerPartner.position.x, sample.position.z - playerPartner.position.z),
-          8,
-          delta,
+      if (interceptSample) {
+        const interceptPoint = new THREE.Vector3(
+          THREE.MathUtils.clamp(interceptSample.position.x, -2.35, 2.35),
+          0,
+          THREE.MathUtils.clamp(interceptSample.position.z, 0.55, 6.15),
         );
-      }
-      const incoming = { x: sample.position.x, y: sample.position.y, z: sample.position.z };
-      if (canPlayerHitShuttle(playerPartner.position, incoming, 2.0)) {
-        const partnerShot = createShotState("clear", incoming);
-        contactReadout!.textContent = "AI PARTNER · AUTOMATIC RETURN";
-        opponentReadout!.textContent = "Your partner reached the shuttle and returned it!";
-        startFlight(
-          partnerShot,
-          "AI PARTNER CLEAR",
-          "Your AI teammate intercepted the incoming shuttle and sent it back to the opponents.",
-          "player",
-        );
-        replacedFlight = true;
+        const partnerDistance = Math.hypot(playerPartner.position.x - interceptPoint.x, playerPartner.position.z - interceptPoint.z);
+        const humanDistance = Math.hypot(player.position.x - interceptPoint.x, player.position.z - interceptPoint.z);
+        // The nearer teammate takes responsibility; the other stays in support.
+        const partnerShouldTake = partnerDistance <= humanDistance + 0.35;
+        if (partnerShouldTake) {
+          const dx = interceptPoint.x - playerPartner.position.x;
+          const dz = interceptPoint.z - playerPartner.position.z;
+          const distance = Math.hypot(dx, dz);
+          const speed = 7.2;
+          const travel = Math.min(distance, speed * Math.max(delta, 0));
+          if (distance > 0.035) {
+            playerPartner.position.x += dx / distance * travel;
+            playerPartner.position.z += dz / distance * travel;
+            partnerMoveTimer = 0.24;
+            playerPartner.rotation.y = Math.atan2(dx, dz);
+          }
+          const incoming = { x: sample.position.x, y: sample.position.y, z: sample.position.z };
+          if (sample.position.z > 0.35 && canPlayerHitShuttle(playerPartner.position, incoming, 1.38)) {
+            const partnerShot = createShotState("clear", incoming);
+            partnerSwingTimer = 0.34;
+            contactReadout!.textContent = "AI PARTNER · INTERCEPT";
+            opponentReadout!.textContent = "Your partner intercepted the shuttle and returned it.";
+            startFlight(
+              partnerShot,
+              "AI PARTNER CLEAR",
+              "Your AI teammate read the incoming shot, moved into position, and returned it.",
+              "player",
+            );
+            replacedFlight = true;
+          }
+        } else {
+          // If the human is closer, the partner covers the space left open.
+          const supportX = THREE.MathUtils.clamp(player.position.x > 0 ? -1.35 : 1.35, -2.1, 2.1);
+          const supportZ = THREE.MathUtils.clamp(player.position.z - 0.55, 1.0, 5.6);
+          const sx = supportX - playerPartner.position.x;
+          const sz = supportZ - playerPartner.position.z;
+          const sd = Math.hypot(sx, sz);
+          if (sd > 0.04) {
+            const step = Math.min(sd, 5.2 * Math.max(delta, 0));
+            playerPartner.position.x += sx / sd * step;
+            playerPartner.position.z += sz / sd * step;
+            partnerMoveTimer = 0.18;
+          }
+        }
       }
     }
     if(!replacedFlight && activeSource === "player" && aiTarget && !aiReturnAttempted) {
