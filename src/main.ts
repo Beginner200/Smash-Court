@@ -293,7 +293,7 @@ function makeAiReturn() {
   const aiShot = chooseAiReturnShot(player.position);
   const initial = createAiReturnState(
     { x: opponent.position.x, y: 1.55, z: Math.min(-0.65, opponent.position.z + 0.35) },
-    player.position.x,
+    { x: player.position.x, y: player.position.y, z: player.position.z },
     aiShot,
   );
   startFlight(initial, `AI ${aiShot}`, `The opponent chose a ${aiShot} based on your court position.`, "ai");
