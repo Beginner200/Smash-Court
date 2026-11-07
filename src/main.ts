@@ -1,6 +1,7 @@
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { buildCourtScene } from "./scene/court.js";
+import type { MatchMode } from "./rules/types.js";
 import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult } from "./physics/shuttle.js";
 import "./style.css";
 
@@ -11,8 +12,8 @@ const timeReadout = document.querySelector<HTMLDivElement>("#time-readout");
 const modeSelect = document.querySelector<HTMLSelectElement>("#mode");
 const launchButton = document.querySelector<HTMLButtonElement>("#launch");
 const resetButton = document.querySelector<HTMLButtonElement>("#reset");
-if (!mount) throw new Error("Missing #scene mount.");
-if (!status) throw new Error("Missing #flight-status.");
+if (!mount) throw new Error("Missing #scene mount!.");
+if (!status) throw new Error("Missing #flight-status!.");
 if (!speedReadout) throw new Error("Missing #speed-readout.");
 if (!timeReadout) throw new Error("Missing #time-readout.");
 if (!modeSelect) throw new Error("Missing #mode.");
@@ -31,7 +32,7 @@ renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.12;
-mount.appendChild(renderer.domElement);
+mount!.appendChild(renderer.domElement);
 const controls = new OrbitControls(camera,renderer.domElement);
 controls.target.set(0,0.9,0);
 controls.enableDamping = true;
@@ -112,13 +113,13 @@ const clock = new THREE.Clock();
 function clearTrajectory() {
   if(trajectoryLine) { scene.remove(trajectoryLine); trajectoryLine.geometry.dispose(); trajectoryLine=null; }
   shuttle.visible=false; result=null; playing=false; lastElapsed=0;
-  status.textContent="Ready to launch";
-  speedReadout.textContent="—";
-  timeReadout.textContent="—";
+  status!.textContent="Ready to launch";
+  speedReadout!.textContent="—";
+  timeReadout!.textContent="—";
 }
 function makeShot() {
   clearTrajectory();
-  const mode = modeSelect.value === "doubles" ? "doubles" : "singles";
+  const mode: MatchMode = modeSelect!.value === "doubles" ? "doubles" : "singles";
   const config = { ...DEFAULT_SHUTTLE_CONFIG, courtMode:mode };
   // Representative high clear from the near rear court toward the far rear court.
   const initial = createShuttleState({x:0,y:2.25,z:-5.8},{x:0.7,y:12.2,z:30});
@@ -129,21 +130,21 @@ function makeShot() {
   scene.add(trajectoryLine);
   shuttle.visible=true;
   shuttle.position.set(initial.position.x,initial.position.y,initial.position.z);
-  status.textContent = result.end === "net" ? "NET CONTACT" : result.end === "out" ? "OUT — outside court" : "FLIGHT SIMULATED";
-  speedReadout.textContent = `${Math.round(metresPerSecondToKmh(magnitude(initial.velocity)))} km/h launch`;
-  timeReadout.textContent = `${result.durationSeconds.toFixed(2)} s · ${result.samples.length} steps`;
+  status!.textContent = result.end === "net" ? "NET CONTACT" : result.end === "out" ? "OUT — outside court" : "FLIGHT SIMULATED";
+  speedReadout!.textContent = `${Math.round(metresPerSecondToKmh(magnitude(initial.velocity)))} km/h launch`;
+  timeReadout!.textContent = `${result.durationSeconds.toFixed(2)} s · ${result.samples.length} steps`;
   animationStart=clock.elapsedTime;
   playing=true;
 }
 function magnitude(v: {x:number;y:number;z:number}) { return Math.hypot(v.x,v.y,v.z); }
 function resize() {
-  const w=mount.clientWidth, h=mount.clientHeight;
+  const w=mount!.clientWidth, h=mount!.clientHeight;
   camera.aspect=w/h; camera.updateProjectionMatrix(); renderer.setSize(w,h,false);
 }
 const resizeObserver=new ResizeObserver(resize); resizeObserver.observe(mount); resize();
 launchButton.addEventListener("click",makeShot);
 resetButton.addEventListener("click",clearTrajectory);
-modeSelect.addEventListener("change",()=>{ clearTrajectory(); });
+modeSelect!.addEventListener("change",()=>{ clearTrajectory(); });
 
 function render() {
   requestAnimationFrame(render);
