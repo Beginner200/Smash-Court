@@ -112,20 +112,19 @@ export interface ServiceObservation {
   receiverFeetInsideServiceCourt: boolean;
   receiverFeetTouchingLine: boolean;
   baseStruckFirst: boolean;
-  inDiagonalOppositeCourts: boolean;
   continuousForwardMovement: boolean;
   flightUpwards: boolean;
   wouldLandInCorrectServiceCourt: boolean;
   missedShuttle: boolean;
   receiverReady: boolean;
   receiverAlsoFaulted?: boolean;
-  undueDelay?: boolean;
+  undueDelayBy?: "server" | "receiver";
   delayAfterBackwardMovement?: boolean;
 }
 
 export type ServiceEvaluation =
   | { kind: "LEGAL"; lawRef: "9.1"; reason: "Correct service" }
-  | { kind: "FAULT"; lawRef: string; reason: string }
+  | { kind: "FAULT"; against: "server" | "receiver"; lawRef: string; reason: string }
   | { kind: "LET"; lawRef: "14.2.1" | "14.2.2"; reason: string };
 
 export interface LandingPoint {
