@@ -5,6 +5,7 @@ import type { MatchMode } from "./rules/types.js";
 import { SHOT_PROFILES, createShotState, type ShotType } from "./physics/shots.js";
 import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult } from "./physics/shuttle.js";
 import { createAiReturnState, getAiLandingTarget } from "./physics/ai.js";
+import { canPlayerHitShuttle } from "./physics/hit-detection.js";
 import { awardRallyPoint, createMatchScore, type MatchScoreState, type MatchSide } from "./rules/match-scoring.js";
 import "./style.css";
 
@@ -190,18 +191,43 @@ function startFlight(initial: ReturnType<typeof createShuttleState>, label: stri
     return target ? new THREE.Vector3(target.x,0,target.z) : null;
   })() : null;
   aiReturnAttempted=false;
-  opponentReadout!.textContent = source === "player" && aiTarget ? "Tracking shuttle…" : source === "ai" ? "Returned the shuttle" : "No return needed";
+  opponentReadout!.textContent = source === "player" && aiTarget ? "Tracking shuttle…" : source === "ai" ? "Move close, then tap a shot to return" : "No return needed";
   animationStart=clock.elapsedTime;
   playing=true;
 }
 function makeShot(type: ShotType = "clear") {
-  if (playing || matchScore.winner) return;
+  if (matchScore.winner) return;
+  const isReturn = playing && flightSource === "ai";
+  if (playing && !isReturn) return;
+
+  let launchPosition: THREE.Vector3;
+  if (isReturn) {
+    const shuttlePosition = { x: shuttle.position.x, y: shuttle.position.y, z: shuttle.position.z };
+    if (!canPlayerHitShuttle(player.position, shuttlePosition)) {
+      status!.textContent = "TOO FAR · MOVE CLOSER TO HIT";
+      opponentReadout!.textContent = "Shuttle is outside your racket reach";
+      return;
+    }
+    launchPosition = shuttle.position.clone();
+  } else {
+    launchPosition = new THREE.Vector3(
+      player.position.x,
+      1.25,
+      Math.max(0.65, player.position.z - 0.45),
+    );
+  }
+
   const initial = createShotState(type, {
-    x: player.position.x,
-    y: 1.25,
-    z: Math.max(0.65, player.position.z - 0.45),
+    x: launchPosition.x,
+    y: launchPosition.y,
+    z: launchPosition.z,
   });
-  startFlight(initial, SHOT_PROFILES[type].label, SHOT_PROFILES[type].description, "player");
+  startFlight(
+    initial,
+    isReturn ? `Return · ${SHOT_PROFILES[type].label}` : SHOT_PROFILES[type].label,
+    isReturn ? `You reached the shuttle and returned a ${type}.` : SHOT_PROFILES[type].description,
+    "player",
+  );
 }
 function makeAiReturn() {
   const initial = createAiReturnState(
