@@ -475,7 +475,7 @@ nextRallyButton.addEventListener("click",()=>{
 });
 updateScoreboard();
 updateServeReadout();
-modeSelect!.addEventListener("change",()=>{ clearTrajectory(); doublesRotation = createDoublesRotation(); servingSide = "player"; rallyStarted = false; pointResolved = false; nextRallyButton.disabled = true; updateDoublesFormation(); updateServeReadout(); status!.textContent = isDoublesMode() ? "Doubles mode · service rotation ready" : "Singles mode · one player per side"; });
+modeSelect!.addEventListener("change",()=>{ clearTrajectory(); matchScore = createMatchScore(); doublesRotation = createDoublesRotation(); servingSide = "player"; rallyStarted = false; pointResolved = false; nextRallyButton.disabled = true; updateScoreboard(); updateDoublesFormation(); updateServeReadout(); status!.textContent = isDoublesMode() ? "Doubles mode · service rotation ready" : "Singles mode · one player per side"; });
 practiceAssist!.addEventListener("change", () => {
   contactReadout!.textContent = practiceAssist!.checked ? "Practice assist ON" : "Standard contact";
 });
@@ -519,7 +519,7 @@ function render() {
     playerPartner.position.z = THREE.MathUtils.damp(playerPartner.position.z, partnerTargetZ, 2.8, delta);
   }
   if (isDoublesMode() && playing && flightSource === "player" && aiTarget) {
-    const chasing = aiContactPlayer;
+    const chasing = opponentPartner.position.distanceTo(aiTarget) < opponent.position.distanceTo(aiTarget) ? opponentPartner : opponent;
     const cover = chasing === opponent ? opponentPartner : opponent;
     const coverX = chasing.position.x > 0 ? -1.25 : 1.25;
     const coverZ = aiTarget.z < -3.2 ? -3.7 : -4.9;
