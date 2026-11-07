@@ -69,7 +69,13 @@ const court = buildCourtScene();
 court.traverse(o=>{ if(o instanceof THREE.Mesh) { o.castShadow=true; o.receiveShadow=true; }});
 scene.add(court);
 
-// Phase 3: simple court avatars. The player starts on the near half.
+// Lightweight procedural badminton avatars with animated racket arms and legs.
+type AvatarRig = {
+  arm: THREE.Group;
+  leftLeg: THREE.Group;
+  rightLeg: THREE.Group;
+  body: THREE.Mesh;
+};
 function makePlayer(color: number, name: string): THREE.Group {
   const group = new THREE.Group();
   group.name = name;
@@ -79,10 +85,33 @@ function makePlayer(color: number, name: string): THREE.Group {
   const head = new THREE.Mesh(new THREE.SphereGeometry(0.17, 16, 12), new THREE.MeshStandardMaterial({ color: 0xf0c9a5, roughness: 0.8 }));
   head.position.y = 1.18;
   head.castShadow = true;
+  const arm = new THREE.Group();
+  arm.position.set(0.18, 0.94, 0);
+  const upperArm = new THREE.Mesh(new THREE.CapsuleGeometry(0.065, 0.32, 3, 6), new THREE.MeshStandardMaterial({ color, roughness: 0.75 }));
+  upperArm.position.set(0.12, -0.12, 0);
+  upperArm.rotation.z = -0.5;
+  upperArm.castShadow = true;
   const racket = new THREE.Mesh(new THREE.TorusGeometry(0.22, 0.018, 6, 18), new THREE.MeshStandardMaterial({ color: 0xe9e4d4, metalness: 0.25 }));
-  racket.position.set(0.28, 0.8, -0.08);
+  racket.position.set(0.26, -0.32, -0.08);
   racket.rotation.y = 0.25;
-  group.add(body, head, racket);
+  const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.018, 0.018, 0.25, 8), new THREE.MeshStandardMaterial({ color: 0x9c7448 }));
+  handle.position.set(0.22, -0.23, -0.02);
+  handle.rotation.z = -0.55;
+  arm.add(upperArm, racket, handle);
+  const makeLeg = (x: number) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(x, 0.35, 0);
+    const leg = new THREE.Mesh(new THREE.CapsuleGeometry(0.075, 0.35, 3, 6), new THREE.MeshStandardMaterial({ color: 0x263b36, roughness: 0.85 }));
+    leg.position.y = -0.2;
+    leg.castShadow = true;
+    pivot.add(leg);
+    group.add(pivot);
+    return pivot;
+  };
+  const leftLeg = makeLeg(-0.12);
+  const rightLeg = makeLeg(0.12);
+  group.add(body, head, arm);
+  group.userData.rig = { arm, leftLeg, rightLeg, body } satisfies AvatarRig;
   return group;
 }
 const player = makePlayer(0x39c58d, "human-player");
@@ -91,10 +120,16 @@ scene.add(player);
 const opponent = makePlayer(0xe2a34a, "simple-ai-opponent");
 opponent.position.set(0, 0, -4.8);
 scene.add(opponent);
+let playerMoveTimer = 0;
+let playerSwingTimer = 0;
+let aiSwingTimer = 0;
+let impactTimer = 0;
+let impactRing: THREE.Mesh | null = null;
 const moveStep = 0.45;
 function movePlayer(dx: number, dz: number) {
   player.position.x = THREE.MathUtils.clamp(player.position.x + dx, -2.35, 2.35);
   player.position.z = THREE.MathUtils.clamp(player.position.z + dz, 0.45, 6.25);
+  playerMoveTimer = 0.24;
 }
 document.querySelectorAll<HTMLButtonElement>("[data-move]").forEach(button => {
   button.addEventListener("click", () => {
@@ -179,6 +214,21 @@ function clearTrajectory() {
 }
 function startFlight(initial: ReturnType<typeof createShuttleState>, label: string, description: string, source: "player" | "ai") {
   clearTrajectory();
+  if (source === "player") playerSwingTimer = 0.34;
+  else aiSwingTimer = 0.34;
+  if (impactRing) {
+    scene.remove(impactRing);
+    impactRing.geometry.dispose();
+    (impactRing.material as THREE.Material).dispose();
+  }
+  impactRing = new THREE.Mesh(
+    new THREE.TorusGeometry(0.16, 0.025, 6, 24),
+    new THREE.MeshBasicMaterial({ color: source === "ai" ? 0xffc477 : 0x75e6c2, transparent: true, opacity: 0.9 })
+  );
+  impactRing.position.set(initial.position.x, initial.position.y, initial.position.z);
+  impactRing.quaternion.copy(camera.quaternion);
+  scene.add(impactRing);
+  impactTimer = 0.28;
   flightSource=source;
   rallyState = source === "player" ? "player-flight" : "ai-flight";
   const mode: MatchMode = modeSelect!.value === "doubles" ? "doubles" : "singles";
@@ -285,6 +335,35 @@ function render() {
   requestAnimationFrame(render);
   const delta=clock.getDelta();
   controls.update();
+  const animateAvatar = (avatar: THREE.Group, swing: number, moving: number, phase: number) => {
+    const rig = avatar.userData.rig as AvatarRig;
+    const swingProgress = swing > 0 ? 1 - swing / 0.34 : 0;
+    const swingPose = swing > 0 ? Math.sin(Math.min(1, swingProgress) * Math.PI) : 0;
+    const gait = moving > 0 ? Math.sin((0.24 - moving) * 34 + phase) : 0;
+    rig.arm.rotation.x = -0.12 - swingPose * 0.95 + gait * 0.08;
+    rig.arm.rotation.z = -0.18 - swingPose * 0.72;
+    rig.leftLeg.rotation.x = gait * 0.42;
+    rig.rightLeg.rotation.x = -gait * 0.42;
+    rig.body.position.y = 0.62 + Math.abs(gait) * 0.025 + swingPose * 0.035;
+    avatar.rotation.y = THREE.MathUtils.damp(avatar.rotation.y, swing > 0 ? -0.18 : 0, 8, delta);
+  };
+  playerMoveTimer = Math.max(0, playerMoveTimer - delta);
+  playerSwingTimer = Math.max(0, playerSwingTimer - delta);
+  aiSwingTimer = Math.max(0, aiSwingTimer - delta);
+  animateAvatar(player, playerSwingTimer, playerMoveTimer, 0);
+  animateAvatar(opponent, aiSwingTimer, playing && flightSource === "player" && !!aiTarget ? 0.24 : 0, Math.PI);
+  if (impactRing && impactTimer > 0) {
+    impactTimer = Math.max(0, impactTimer - delta);
+    const progress = 1 - impactTimer / 0.28;
+    impactRing.scale.setScalar(1 + progress * 2.6);
+    (impactRing.material as THREE.MeshBasicMaterial).opacity = Math.max(0, 0.9 * (1 - progress));
+    if (impactTimer === 0) {
+      scene.remove(impactRing);
+      impactRing.geometry.dispose();
+      (impactRing.material as THREE.Material).dispose();
+      impactRing = null;
+    }
+  }
   if(playing && result) {
     const flightResult = result;
     const activeSource = flightSource;
@@ -301,7 +380,10 @@ function render() {
       const target = new THREE.Vector3(aiTarget.x,0,aiTarget.z);
       const distance = opponent.position.distanceTo(target);
       const step = 9 * Math.max(delta,0);
-      if(distance > 0.04) opponent.position.lerp(target,Math.min(1,step/distance));
+      if(distance > 0.04) {
+        opponent.position.lerp(target,Math.min(1,step/distance));
+        opponent.rotation.y = THREE.MathUtils.damp(opponent.rotation.y, Math.atan2(target.x - opponent.position.x, target.z - opponent.position.z), 7, delta);
+      }
       const returnMoment = Math.max(0.12,flightResult.durationSeconds * 0.82);
       if(elapsed >= returnMoment) {
         aiReturnAttempted=true;
