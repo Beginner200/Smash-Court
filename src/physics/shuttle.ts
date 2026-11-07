@@ -7,8 +7,8 @@ import {
   COURT_LENGTH_M,
   DOUBLES_WIDTH_M,
   isLandingInCourt,
-  type MatchMode,
 } from "../rules/service.js";
+import type { MatchMode } from "../rules/types.js";
 
 export interface Vec3 { x: number; y: number; z: number }
 export interface ShuttleState { position: Vec3; velocity: Vec3; timeSeconds: number }
