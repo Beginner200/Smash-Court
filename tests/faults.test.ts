@@ -10,6 +10,14 @@ describe("BWF Laws 12–14 — faults, lets and service-court correction",()=>{
     expect(classifyInPlayEvent({kind:"shuttle-caught-on-net-during-rally"},"singles"))
       .toMatchObject({kind:"LET",lawRef:"14.2.3.1"});
   });
+  it("calls a service caught on the net a fault, not a let",()=>{
+    expect(classifyInPlayEvent({kind:"serve-caught-on-net"},"singles"))
+      .toMatchObject({kind:"FAULT",lawRef:"13.2.1"});
+  });
+  it("calls a shuttle caught in the net after crossing during a rally a let",()=>{
+    expect(classifyInPlayEvent({kind:"shuttle-caught-in-net-after-crossing"},"doubles"))
+      .toMatchObject({kind:"LET",lawRef:"14.2.3.2"});
+  });
   it("calls disintegration a let",()=>{
     expect(classifyInPlayEvent({kind:"shuttle-disintegrates"},"doubles"))
       .toMatchObject({kind:"LET",lawRef:"14.2.4"});
