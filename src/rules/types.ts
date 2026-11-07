@@ -117,7 +117,6 @@ export interface ServiceObservation {
   wouldLandInCorrectServiceCourt: boolean;
   missedShuttle: boolean;
   receiverReady: boolean;
-  receiverAlsoFaulted?: boolean;
   undueDelayBy?: "server" | "receiver";
   delayAfterBackwardMovement?: boolean;
 }
