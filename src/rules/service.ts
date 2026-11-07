@@ -17,36 +17,47 @@ export function evaluateService(observation: ServiceObservation): ServiceEvaluat
   if (!observation.receiverReady) {
     return { kind: "LET", lawRef: "14.2.1", reason: "Receiver was not ready." };
   }
-  if (observation.undueDelay) {
-    return { kind: "FAULT", lawRef: "9.1.1", reason: "Undue delay once server and receiver were ready." };
+  if (observation.undueDelayBy) {
+    return { kind: "FAULT", against: observation.undueDelayBy, lawRef: "9.1.1", reason: `Undue delay by the ${observation.undueDelayBy} once both sides were ready.` };
   }
   if (observation.delayAfterBackwardMovement) {
-    return { kind: "FAULT", lawRef: "9.1.2", reason: "Delay after completion of the server's backward racket-head movement." };
+    return { kind: "FAULT", against: "server", lawRef: "9.1.2", reason: "Delay after completion of the server's backward racket-head movement." };
   }
-  if (!observation.serverFeetInsideServiceCourt || observation.serverFeetTouchingLine ||
-      !observation.receiverFeetInsideServiceCourt || observation.receiverFeetTouchingLine ||
-      !observation.inDiagonalOppositeCourts) {
-    return { kind: "FAULT", lawRef: "9.1.3", reason: "Server or receiver is outside the correct service court or touching a boundary line." };
+  const serverCourtFault = !observation.serverFeetInsideServiceCourt || observation.serverFeetTouchingLine;
+  const receiverCourtFault = !observation.receiverFeetInsideServiceCourt || observation.receiverFeetTouchingLine;
+  const serverFootFault = !observation.serverFeetStationary || !observation.serverFeetInContact;
+  const receiverFootFault = !observation.receiverFeetStationary || !observation.receiverFeetInContact;
+  if (observation.receiverAlsoFaulted ||
+      (serverCourtFault || serverFootFault) && (receiverCourtFault || receiverFootFault)) {
+    return { kind: "LET", lawRef: "14.2.2", reason: "Both server and receiver were faulted during service." };
   }
-  if (!observation.serverFeetStationary || !observation.serverFeetInContact ||
-      !observation.receiverFeetStationary || !observation.receiverFeetInContact) {
-    return { kind: "FAULT", lawRef: "9.1.4", reason: "Some part of both players' feet did not remain in contact with the court in a stationary position." };
+  if (serverCourtFault) {
+    return { kind: "FAULT", against: "server", lawRef: "9.1.3", reason: "Server was outside the service court or touching a boundary line." };
+  }
+  if (receiverCourtFault) {
+    return { kind: "FAULT", against: "receiver", lawRef: "9.1.3", reason: "Receiver was outside the service court or touching a boundary line." };
+  }
+  if (serverFootFault) {
+    return { kind: "FAULT", against: "server", lawRef: "9.1.4", reason: "Server's feet were not stationary and in contact with the court." };
+  }
+  if (receiverFootFault) {
+    return { kind: "FAULT", against: "receiver", lawRef: "9.1.4", reason: "Receiver's feet were not stationary and in contact with the court." };
   }
   if (!observation.baseStruckFirst) {
-    return { kind: "FAULT", lawRef: "9.1.5", reason: "The racket did not initially hit the base of the shuttle." };
+    return { kind: "FAULT", against: "server", lawRef: "9.1.5", reason: "The racket did not initially hit the base of the shuttle." };
   }
   // Law 9.1.6: the whole shuttle must be strictly below 1.15 m at impact.
   if (!(observation.shuttleTopHeightM < 1.15)) {
-    return { kind: "FAULT", lawRef: "9.1.6", reason: "Whole shuttle was not below 1.15 metres at impact." };
+    return { kind: "FAULT", against: "server", lawRef: "9.1.6", reason: "Whole shuttle was not below 1.15 metres at impact." };
   }
   if (!observation.continuousForwardMovement) {
-    return { kind: "FAULT", lawRef: "9.1.7", reason: "Racket did not continue forwards from service start until delivery." };
+    return { kind: "FAULT", against: "server", lawRef: "9.1.7", reason: "Racket did not continue forwards from service start until delivery." };
   }
   if (!observation.flightUpwards || !observation.wouldLandInCorrectServiceCourt) {
-    return { kind: "FAULT", lawRef: "9.1.8", reason: "Service flight was not upwards over the net toward the correct diagonal service court." };
+    return { kind: "FAULT", against: "server", lawRef: "9.1.8", reason: "Service flight was not upwards over the net toward the correct diagonal service court." };
   }
   if (observation.missedShuttle) {
-    return { kind: "FAULT", lawRef: "9.1.9", reason: "Server missed the shuttle while attempting to serve." };
+    return { kind: "FAULT", against: "server", lawRef: "9.1.9", reason: "Server missed the shuttle while attempting to serve." };
   }
   return { kind: "LEGAL", lawRef: "9.1", reason: "Correct service" };
 }
