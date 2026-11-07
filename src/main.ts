@@ -465,12 +465,17 @@ function makeServe(server: ServingSide) {
 function makeAiReturn() {
   const difficulty = difficultySelect!.value;
   const contactPosition = { x: aiContactPlayer.position.x, y: 1.55, z: Math.min(-0.65, aiContactPlayer.position.z + 0.35) };
-  const plan = chooseAiReturnPlan(player.position, contactPosition, aiRallyIndex++);
+  const plan = chooseAiReturnPlan(
+    player.position,
+    contactPosition,
+    aiRallyIndex++,
+    isDoublesMode() ? playerPartner.position : undefined,
+  );
   if (difficulty === "hard") {
     plan.target.x = THREE.MathUtils.clamp(plan.target.x * 1.08, -2.25, 2.25);
     plan.target.z = THREE.MathUtils.clamp(plan.target.z + (plan.shotType === "clear" ? 0.35 : -0.2), 0.65, 6.1);
   }
-  const initial = createAiReturnState(contactPosition, plan.target, plan.shotType);
+  const initial = createAiReturnState(contactPosition, plan.target, plan.shotType, isDoublesMode() ? "doubles" : "singles");
   startFlight(initial, `AI ${plan.shotType}`, `The opponent aimed for the open ${plan.target.x < 0 ? "left" : "right"}-${plan.target.z < 3 ? "front" : "back"} court.`, "ai");
 }
 function magnitude(v: {x:number;y:number;z:number}) { return Math.hypot(v.x,v.y,v.z); }
