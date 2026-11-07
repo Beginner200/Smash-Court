@@ -6,6 +6,7 @@ import { SHOT_PROFILES, createShotState, type ShotType } from "./physics/shots.j
 import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, metresPerSecondToKmh, simulateTrajectory, type TrajectoryResult } from "./physics/shuttle.js";
 import { chooseAiReturnPlan, createAiReturnState, getAiLandingTarget } from "./physics/ai.js";
 import { canPlayerHitShuttle } from "./physics/hit-detection.js";
+import { assessShotContact } from "./physics/contact-quality.js";
 import { awardRallyPoint, createMatchScore, type MatchScoreState, type MatchSide } from "./rules/match-scoring.js";
 import "./style.css";
 
@@ -18,6 +19,7 @@ const difficultySelect = document.querySelector<HTMLSelectElement>("#difficulty"
 const launchButton = document.querySelector<HTMLButtonElement>("#launch");
 const resetButton = document.querySelector<HTMLButtonElement>("#reset");
 const shotReadout = document.querySelector<HTMLDivElement>("#shot-readout");
+const contactReadout = document.querySelector<HTMLDivElement>("#contact-readout");
 const opponentReadout = document.querySelector<HTMLDivElement>("#opponent-readout");
 const playerScoreReadout = document.querySelector<HTMLSpanElement>("#score-player");
 const opponentScoreReadout = document.querySelector<HTMLSpanElement>("#score-opponent");
@@ -35,6 +37,7 @@ if (!difficultySelect) throw new Error("Missing #difficulty.");
 if (!launchButton) throw new Error("Missing #launch.");
 if (!resetButton) throw new Error("Missing #reset.");
 if (!shotReadout) throw new Error("Missing #shot-readout.");
+if (!contactReadout) throw new Error("Missing #contact-readout.");
 if (!opponentReadout) throw new Error("Missing #opponent-readout.");
 if (!playerScoreReadout || !opponentScoreReadout || !playerGamesReadout || !opponentGamesReadout || !matchMessage || !newMatchButton || !nextRallyButton) throw new Error("Missing match scoreboard controls.");
 
@@ -301,15 +304,20 @@ function makeShot(type: ShotType = "clear") {
     );
   }
 
+  const contact = assessShotContact(player.position, launchPosition);
   const initial = createShotState(type, {
     x: launchPosition.x,
     y: launchPosition.y,
     z: launchPosition.z,
   });
+  initial.velocity.x += contact.lateralErrorMps;
+  initial.velocity.y *= contact.powerMultiplier;
+  initial.velocity.z *= contact.powerMultiplier;
+  contactReadout!.textContent = `${contact.grade} · ${Math.round(contact.quality * 100)}%`;
   startFlight(
     initial,
     isReturn ? `Return · ${SHOT_PROFILES[type].label}` : SHOT_PROFILES[type].label,
-    isReturn ? `You reached the shuttle and returned a ${type}.` : SHOT_PROFILES[type].description,
+    isReturn ? `You returned a ${type} · ${contact.grade.toLowerCase()} contact.` : `${SHOT_PROFILES[type].description} ${contact.grade} contact.`,
     "player",
   );
 }
