@@ -18,6 +18,10 @@ describe("BWF Laws 12–14 — faults, lets and service-court correction",()=>{
     expect(classifyInPlayEvent({kind:"shuttle-caught-in-net-after-crossing"},"doubles"))
       .toMatchObject({kind:"LET",lawRef:"14.2.3.2"});
   });
+  it("allows racket head and strings to contact the shuttle in one stroke",()=>{
+    expect(classifyInPlayEvent({kind:"double-hit",samePlayer:true,headAndStringSameStroke:true},"singles"))
+      .toMatchObject({kind:"IN_PLAY"});
+  });
   it("calls disintegration a let",()=>{
     expect(classifyInPlayEvent({kind:"shuttle-disintegrates"},"doubles"))
       .toMatchObject({kind:"LET",lawRef:"14.2.4"});
