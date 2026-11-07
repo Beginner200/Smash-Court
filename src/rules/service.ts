@@ -7,7 +7,7 @@ import type {
 } from "./types.js";
 import { serviceCourtForScore } from "./scoring.js";
 
-/** BWF Laws 1.1, 9.1.3–9.1.7, 10.1 and 11.1. */
+/** BWF Laws 1.1, 9.1.1–9.1.9, 10.1 and 11.1. */
 export function evaluateService(observation: ServiceObservation): ServiceEvaluation {
   // Law 14.2.2 takes precedence when both server and receiver are faulted in service.
   if (observation.receiverAlsoFaulted) {
@@ -18,18 +18,22 @@ export function evaluateService(observation: ServiceObservation): ServiceEvaluat
     return { kind: "LET", lawRef: "14.2.1", reason: "Receiver was not ready." };
   }
   if (observation.undueDelay) {
-    return { kind: "FAULT", lawRef: "9.1.1", reason: "Undue delay in delivering the service." };
+    return { kind: "FAULT", lawRef: "9.1.1", reason: "Undue delay once server and receiver were ready." };
+  }
+  if (observation.delayAfterBackwardMovement) {
+    return { kind: "FAULT", lawRef: "9.1.2", reason: "Delay after completion of the server's backward racket-head movement." };
   }
   if (!observation.serverFeetInsideServiceCourt || observation.serverFeetTouchingLine ||
-      !observation.receiverFeetInsideServiceCourt || observation.receiverFeetTouchingLine) {
+      !observation.receiverFeetInsideServiceCourt || observation.receiverFeetTouchingLine ||
+      !observation.inDiagonalOppositeCourts) {
     return { kind: "FAULT", lawRef: "9.1.3", reason: "Server or receiver is outside the correct service court or touching a boundary line." };
   }
   if (!observation.serverFeetStationary || !observation.serverFeetInContact ||
       !observation.receiverFeetStationary || !observation.receiverFeetInContact) {
     return { kind: "FAULT", lawRef: "9.1.4", reason: "Some part of both players' feet did not remain in contact with the court in a stationary position." };
   }
-  if (!observation.baseStruckFirst || !observation.releasedWithoutSpin) {
-    return { kind: "FAULT", lawRef: "9.1.5", reason: "Shuttle was not released without added spin or the racket did not initially hit its base." };
+  if (!observation.baseStruckFirst) {
+    return { kind: "FAULT", lawRef: "9.1.5", reason: "The racket did not initially hit the base of the shuttle." };
   }
   // Law 9.1.6: the whole shuttle must be strictly below 1.15 m at impact.
   if (!(observation.shuttleTopHeightM < 1.15)) {
