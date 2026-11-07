@@ -57,3 +57,10 @@ button:hover{filter:brightness(1.1);transform:translateY(-1px)}button:focus-visi
 
 .contact-card .hud-value{color:#9aefc4}
 @media(max-width:640px){.contact-card{display:none}}
+
+.assist-panel{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:13px;padding:11px 16px;border:1px solid #3c785d;border-radius:12px;background:#10291f}
+.assist-panel label{display:flex;align-items:center;gap:8px;color:#a9efc9;font-size:12px;cursor:pointer}
+.assist-panel input{width:19px;height:19px;accent-color:#65dba4}
+.assist-panel span{color:#9bb4a8;font-size:11px}
+.dpad button{touch-action:none;user-select:none;-webkit-user-select:none;min-height:42px;font-size:17px}
+@media(max-width:640px){.dpad{grid-template-columns:repeat(3,48px);grid-template-rows:repeat(2,44px);gap:5px}.dpad button{min-height:44px;padding:3px}.player-controls{gap:8px}.player-controls span{max-width:145px}}
