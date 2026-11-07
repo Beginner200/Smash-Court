@@ -14,7 +14,7 @@
         <div class="phase">PHASE 03 · BASIC SHOTS</div>
       </header>
       <section class="intro">
-        <div><h2>Move and hit the shuttle</h2><p>Move around the near court, then choose Clear, Drop, Smash, or Lift. Drag to orbit and scroll to zoom.</p></div>
+        <div><h2>Move and hit the shuttle</h2><p>Move around the near court, then choose Clear, Drop, Smash, or Lift. The AI tracks shots on its side and attempts a return. Drag to orbit and scroll to zoom.</p></div>
       </section>
       <section class="stage" aria-label="Interactive 3D badminton court">
         <div id="scene"></div>
@@ -23,6 +23,7 @@
           <div class="hud-card"><div class="hud-label">Launch speed</div><div class="hud-value" id="speed-readout">—</div></div>
           <div class="hud-card"><div class="hud-label">Flight duration</div><div class="hud-value" id="time-readout">—</div></div>
           <div class="hud-card shot-card"><div class="hud-label">Selected shot</div><div class="hud-value" id="shot-readout">Choose a shot</div></div>
+          <div class="hud-card ai-card"><div class="hud-label">AI opponent</div><div class="hud-value" id="opponent-readout">Waiting for your shot</div></div>
         </div>
       </section>
       <section class="player-controls" aria-label="Player movement">
