@@ -54,3 +54,6 @@ button:hover{filter:brightness(1.1);transform:translateY(-1px)}button:focus-visi
 .stamina-fill{height:100%;width:100%;border-radius:999px;background:linear-gradient(90deg,#39b879,#9aefc4);transition:width .12s linear,background .2s}
 .stamina-fill.low{background:linear-gradient(90deg,#c45b42,#f2a16e)}
 .stamina-panel p{margin:7px 0 0;color:#8da99b;font-size:10px;line-height:1.4}
+
+.contact-card .hud-value{color:#9aefc4}
+@media(max-width:640px){.contact-card{display:none}}
