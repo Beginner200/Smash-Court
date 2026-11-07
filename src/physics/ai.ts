@@ -1,4 +1,4 @@
-import { createShuttleState, type ShuttleState, type Vec3 } from "./shuttle.js";
+import { createShuttleState, DEFAULT_SHUTTLE_CONFIG, simulateTrajectory, type ShuttleState, type Vec3 } from "./shuttle.js";
 import type { ShotType } from "./shots.js";
 import type { TrajectoryResult } from "./shuttle.js";
 
@@ -16,15 +16,56 @@ export function chooseAiReturnShot(player: Vec3): ShotType {
   return "drop";
 }
 
-/** A simple prototype return stroke aimed generally back toward the human side. */
-export function createAiReturnState(position: Vec3, playerX = 0, shotType: ShotType = "clear"): ShuttleState {
-  if (![position.x, position.y, position.z, playerX].every(Number.isFinite)) {
+/**
+ * Aim the AI return at the player's current court position.
+ * A short binary search calibrates horizontal launch speed against the same
+ * drag model used by the live shuttle, so moving forward/back or sideways
+ * changes where the AI places its return.
+ */
+export function createAiReturnState(position: Vec3, playerTarget: Vec3, shotType: ShotType = "clear"): ShuttleState {
+  if (![position.x, position.y, position.z, playerTarget.x, playerTarget.y, playerTarget.z].every(Number.isFinite)) {
     throw new RangeError("AI return coordinates must be finite.");
   }
-  const lateral = Math.max(-2.5, Math.min(2.5, (playerX - position.x) * 0.5));
-  // The earlier profiles lost nearly all forward speed to shuttle drag and
-  // landed beside the net. These lower, longer profiles reach the player's half
-  // at a playable height and give the player time to move into racket range.
-  const profile = shotType === "drop" ? { y: 6, z: 24 } : { y: 8, z: 28 };
-  return createShuttleState(position, { x: lateral, y: profile.y, z: profile.z });
+
+  const target = {
+    x: Math.max(-2.4, Math.min(2.4, playerTarget.x)),
+    z: Math.max(0.45, Math.min(6.25, playerTarget.z)),
+  };
+  const dx = target.x - position.x;
+  const dz = target.z - position.z;
+  const distance = Math.hypot(dx, dz);
+  if (distance < 0.01 || dz <= 0) {
+    return createShuttleState(position, { x: 0, y: 6, z: 20 });
+  }
+
+  const profile = shotType === "drop" ? { y: 6 } : { y: 8 };
+  const direction = { x: dx / distance, z: dz / distance };
+  let low = 6;
+  let high = 42;
+  let best = createShuttleState(position, { x: direction.x * 22, y: profile.y, z: direction.z * 22 });
+  let bestError = Number.POSITIVE_INFINITY;
+
+  for (let i = 0; i < 22; i++) {
+    const speed = (low + high) / 2;
+    const candidate = createShuttleState(position, {
+      x: direction.x * speed,
+      y: profile.y,
+      z: direction.z * speed,
+    });
+    const flight = simulateTrajectory(candidate, DEFAULT_SHUTTLE_CONFIG);
+    const landing = flight.landing;
+    if (landing) {
+      const landedDistance = Math.hypot(landing.x - position.x, landing.z - position.z);
+      const error = Math.abs(landedDistance - distance);
+      if (flight.end === "ground" && error < bestError) {
+        best = candidate;
+        bestError = error;
+      }
+      if (landedDistance < distance) low = speed;
+      else high = speed;
+    } else {
+      high = speed;
+    }
+  }
+  return best;
 }
