@@ -49,12 +49,15 @@
         <button class="secondary" id="reset">Reset view</button>
         <button class="secondary" id="new-match">New match</button>
         <button class="secondary" id="next-rally" disabled>Next rally</button>
+        <label class="select-wrap" for="difficulty">AI difficulty
+          <select id="difficulty"><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option></select>
+        </label>
         <label class="select-wrap" for="mode">Court ruleset
           <select id="mode"><option value="singles">Singles</option><option value="doubles">Doubles</option></select>
         </label>
       </section>
       <div class="legend"><span><i class="dot"></i>Simulated flight path</span><span><i class="dot white"></i>Court & service lines</span><span><i class="dot gold"></i>Shuttlecock model</span></div>
-      <footer class="note">Scoring: each completed rally awards one point. Games are first to 21 with a two-point lead, capped at 30; the match is best of three. Player returns now require racket-range contact with the moving shuttle; AI movement and shot selection are simple prototype decisions, not full human-like badminton strategy. Physics uses fixed 1/240-second steps for deterministic replay; aerodynamic values are initial tuning estimates, not laboratory-calibrated data. Court line decisions reuse the Phase 1 rules module.</footer>
+      <footer class="note">Scoring: each completed rally awards one point. Games are first to 21 with a two-point lead, capped at 30; the match is best of three. Player returns now require racket-range contact with the moving shuttle; AI difficulty changes opponent movement speed, interception timing, reach, and (on Hard) shot placement. AI movement and shot selection remain prototype decisions, not full human-like badminton strategy. Physics uses fixed 1/240-second steps for deterministic replay; aerodynamic values are initial tuning estimates, not laboratory-calibrated data. Court line decisions reuse the Phase 1 rules module.</footer>
     </main>
     <script type="module" src="/src/main.ts"></script>
   </body>
