@@ -19,6 +19,7 @@ function doubles(): MatchState {
   });
 }
 function point(state:MatchState,winner:SideId):MatchState {
+  if (state.phase === "interval" && state.interval) state = tickInterval(state,state.interval.remainingSeconds);
   return resolveRally(state,{kind:"POINT",winner,lawRef:"7.3",reason:"Rally won."});
 }
 describe("BWF match state machine",()=>{
@@ -65,26 +66,22 @@ describe("BWF match state machine",()=>{
     s=point(s,"B");
     expect(s.serverId).toBe("B1");
   });
-  it("reaches and awards the golden point at 29-all",()=>{
+  it("reaches 29-all and awards the 30th point to end the game",()=>{
     let s=singles();
-    // Seed legal prior rallies through the reducer, alternating points to 29-all.
-    for(let i=0;i<29;i++) s=point(s,i%2===0?"A":"B");
-    expect(s.scores).toEqual({A:15,B:14});
-    // Finish this test's 29-all state via repeated legal scoring from a deterministic sequence.
-    for(let i=0;i<14;i++) s=point(s,"B");
-    expect(s.scores).toEqual({A:15,B:28});
+    for(let i=0;i<58;i++) s=point(s,i%2===0?"A":"B");
+    expect(s.scores).toEqual({A:29,B:29});
     s=point(s,"A");
-    s=point(s,"B");
-    expect(s.scores).toEqual({A:16,B:29});
-    // The pure scorer separately verifies 29-29 -> 30-29; the reducer cannot
-    // reach arbitrary states without playing every intervening rally.
+    expect(s.scores).toEqual({A:30,B:29});
+    expect(s.phase).toBe("game-over");
+    expect(s.lastGameWinner).toBe("A");
   });
   it("locks play during interval and resumes after timer",()=>{
     let s=singles();
-    for(let i=0;i<11;i++) s=point(s,"A");
+    for(let i=0;i<10;i++) s=point(s,"A");
+    s=resolveRally(s,{kind:"POINT",winner:"A",lawRef:"7.3",reason:"Rally won."});
     expect(s.phase).toBe("interval");
     expect(s.interval?.durationSeconds).toBe(60);
-    expect(()=>point(s,"A")).toThrow();
+    expect(()=>resolveRally(s,{kind:"POINT",winner:"A",lawRef:"7.3",reason:"Blocked during interval."})).toThrow();
     s=tickInterval(s,60);
     expect(s.phase).toBe("ready-to-serve");
   });
@@ -99,7 +96,6 @@ describe("BWF match state machine",()=>{
   it("changes ends at 11 in the third game",()=>{
     let s=singles();
     for(let i=0;i<21;i++) s=point(s,"A");
-    s=tickInterval(s,0); // game-over has no interval; start next game below
     s=startNextGame(s,"A1","B1"); s=tickInterval(s,120);
     for(let i=0;i<21;i++) s=point(s,"B");
     s=startNextGame(s,"B1","A1"); s=tickInterval(s,120);
