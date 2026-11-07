@@ -21,7 +21,7 @@ export function createServeState(server: ServingSide, serverScore: number): Shut
   const direction = server === "player" ? -1 : 1;
   return createShuttleState(
     { x, y: 0.95, z },
-    { x: 0, y: 5, z: 42 * direction },
+    { x: 0, y: 6.5, z: 42 * direction },
   );
 }
 
