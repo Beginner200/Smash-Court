@@ -232,6 +232,7 @@ let lastElapsed = 0;
 let flightSource: "player" | "ai" = "player";
 let aiReturnAttempted = false;
 let aiRallyIndex = 0;
+let aiContactPlayer: THREE.Group;
 let aiTarget: THREE.Vector3 | null = null;
 let matchScore: MatchScoreState = createMatchScore();
 let pointResolved = false;
@@ -408,7 +409,7 @@ function makeServe(server: ServingSide) {
 }
 function makeAiReturn() {
   const difficulty = difficultySelect!.value;
-  const contactPosition = { x: opponent.position.x, y: 1.55, z: Math.min(-0.65, opponent.position.z + 0.35) };
+  const contactPosition = { x: aiContactPlayer.position.x, y: 1.55, z: Math.min(-0.65, aiContactPlayer.position.z + 0.35) };
   const plan = chooseAiReturnPlan(player.position, contactPosition, aiRallyIndex++);
   if (difficulty === "hard") {
     plan.target.x = THREE.MathUtils.clamp(plan.target.x * 1.08, -2.25, 2.25);
@@ -523,6 +524,7 @@ function render() {
       const target = new THREE.Vector3(aiTarget.x,0,aiTarget.z);
       const difficulty = difficultySelect!.value;
       const activeOpponent = isDoublesMode() && opponentPartner.position.distanceTo(target) < opponent.position.distanceTo(target) ? opponentPartner : opponent;
+      aiContactPlayer = activeOpponent;
       const distance = activeOpponent.position.distanceTo(target);
       const aiSpeed = difficulty === "easy" ? 6 : difficulty === "hard" ? 12 : 9;
       const aiReach = difficulty === "easy" ? 1.55 : difficulty === "hard" ? 1.05 : 1.35;
