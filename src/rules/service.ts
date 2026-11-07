@@ -20,20 +20,16 @@ export function evaluateService(observation: ServiceObservation): ServiceEvaluat
   if (observation.undueDelay) {
     return { kind: "FAULT", lawRef: "9.1.1", reason: "Undue delay in delivering the service." };
   }
-  if (!observation.serverFeetInsideServiceCourt || observation.serverFeetTouchingLine) {
-    return { kind: "FAULT", lawRef: "9.1.3", reason: "Server is outside the correct service court or touching a boundary line." };
+  if (!observation.serverFeetInsideServiceCourt || observation.serverFeetTouchingLine ||
+      !observation.receiverFeetInsideServiceCourt || observation.receiverFeetTouchingLine) {
+    return { kind: "FAULT", lawRef: "9.1.3", reason: "Server or receiver is outside the correct service court or touching a boundary line." };
   }
-  if (!observation.receiverFeetInsideServiceCourt || observation.receiverFeetTouchingLine) {
-    return { kind: "FAULT", lawRef: "9.1.3", reason: "Receiver is outside the correct service court or touching a boundary line." };
-  }
-  if (!observation.serverFeetStationary || !observation.serverFeetInContact) {
-    return { kind: "FAULT", lawRef: "9.1.4", reason: "Server's feet were not stationary and in contact with the court." };
-  }
-  if (!observation.receiverFeetStationary || !observation.receiverFeetInContact) {
-    return { kind: "FAULT", lawRef: "9.1.4", reason: "Receiver's feet were not stationary and in contact with the court." };
+  if (!observation.serverFeetStationary || !observation.serverFeetInContact ||
+      !observation.receiverFeetStationary || !observation.receiverFeetInContact) {
+    return { kind: "FAULT", lawRef: "9.1.4", reason: "Some part of both players' feet did not remain in contact with the court in a stationary position." };
   }
   if (!observation.baseStruckFirst || !observation.releasedWithoutSpin) {
-    return { kind: "FAULT", lawRef: "9.1.5", reason: "The base was not struck first or the shuttle was released with added spin." };
+    return { kind: "FAULT", lawRef: "9.1.5", reason: "Shuttle was not released without added spin or the racket did not initially hit its base." };
   }
   // Law 9.1.6: the whole shuttle must be strictly below 1.15 m at impact.
   if (!(observation.shuttleTopHeightM < 1.15)) {
