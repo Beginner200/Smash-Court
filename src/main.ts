@@ -33,6 +33,7 @@ const opponentScoreReadout = document.querySelector<HTMLSpanElement>("#score-opp
 const playerGamesReadout = document.querySelector<HTMLSpanElement>("#games-player");
 const opponentGamesReadout = document.querySelector<HTMLSpanElement>("#games-opponent");
 const matchMessage = document.querySelector<HTMLDivElement>("#match-message");
+const umpireCallReadout = document.querySelector<HTMLDivElement>("#umpire-call");
 const newMatchButton = document.querySelector<HTMLButtonElement>("#new-match");
 const nextRallyButton = document.querySelector<HTMLButtonElement>("#next-rally");
 const serveReadout = document.querySelector<HTMLDivElement>("#serve-readout");
@@ -312,6 +313,10 @@ function updateBreakHud() {
     : "Official 120-second interval. Players change ends between games; the next rally unlocks when the countdown ends.";
 }
 function applyRallyDecision(decision: ReturnType<typeof adjudicateRallyEvent>) {
+  if (umpireCallReadout) {
+    const label = decision.kind === "POINT" ? `POINT · Law ${decision.lawRef}` : decision.kind === "FAULT" ? `FAULT · Law ${decision.lawRef}` : `LET · Law ${decision.lawRef}`;
+    umpireCallReadout.textContent = `${label} — ${decision.reason}`;
+  }
   if (decision.kind === "POINT") {
     const winner: MatchSide = decision.winner === "A" ? "player" : "opponent";
     awardPoint(winner, `Law ${decision.lawRef} · ${decision.reason}`);
