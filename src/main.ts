@@ -14,6 +14,7 @@ import { awardRallyPoint, createMatchScore, type MatchScoreState, type MatchSide
 import { advanceMatchBreak, createMatchBreak, type MatchBreakState } from "./rules/match-breaks.js";
 import { adjudicateRallyEvent } from "./rules/rally-adjudication.js";
 import { adjudicateFlightOutcome } from "./rules/flight-adjudication.js";
+import { adjudicateServiceEvaluation } from "./rules/service-adjudication.js";
 import "./style.css";
 
 const mount = document.querySelector<HTMLDivElement>("#scene");
@@ -504,9 +505,9 @@ function makeServe(server: ServingSide) {
   const mode: MatchMode = modeSelect!.value === "doubles" ? "doubles" : "singles";
   const check = evaluateServeFlight(initial, server, serverScore, mode);
   if (check.evaluation.kind !== "LEGAL") {
-    const receiver: MatchSide = server === "player" ? "opponent" : "player";
-    status!.textContent = `SERVICE FAULT · ${check.evaluation.reason}`;
-    awardPoint(receiver, `Service fault · ${check.evaluation.reason}`);
+    const serverSide = server === "player" ? "A" : "B";
+    const decision = adjudicateServiceEvaluation(check.evaluation, serverSide);
+    if (decision) applyRallyDecision(decision);
     return;
   }
   const court = getServiceCourt(serverScore).toUpperCase();
