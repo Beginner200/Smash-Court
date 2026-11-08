@@ -12,6 +12,8 @@ import { getServiceCourt } from "./rules/service.js";
 import { advanceDoublesRotation, createDoublesRotation, getDoublesServer, type DoublesPlayer, type DoublesRotationState } from "./rules/doubles-rotation.js";
 import { awardRallyPoint, createMatchScore, type MatchScoreState, type MatchSide } from "./rules/match-scoring.js";
 import { advanceMatchBreak, createMatchBreak, type MatchBreakState } from "./rules/match-breaks.js";
+import { adjudicateRallyEvent } from "./rules/rally-adjudication.js";
+import { adjudicateFlightOutcome } from "./rules/flight-adjudication.js";
 import "./style.css";
 
 const mount = document.querySelector<HTMLDivElement>("#scene");
@@ -308,6 +310,30 @@ function updateBreakHud() {
   note.textContent = matchBreak.kind === "mid-game"
     ? "Official 60-second interval. The next rally unlocks when the countdown ends."
     : "Official 120-second interval. Players change ends between games; the next rally unlocks when the countdown ends.";
+}
+function applyRallyDecision(decision: ReturnType<typeof adjudicateRallyEvent>) {
+  if (decision.kind === "POINT") {
+    const winner: MatchSide = decision.winner === "A" ? "player" : "opponent";
+    awardPoint(winner, `Law ${decision.lawRef} · ${decision.reason}`);
+    return;
+  }
+  if (decision.kind === "FAULT") {
+    const winner: MatchSide = decision.against === "A" ? "opponent" : "player";
+    awardPoint(winner, `FAULT · Law ${decision.lawRef} · ${decision.reason}`);
+    return;
+  }
+  // A let replays the rally without changing the score or serving side.
+  const wasServe = serveInProgress;
+  clearTrajectory();
+  pointResolved = false;
+  rallyStarted = false;
+  serveInProgress = false;
+  rallyState = "ready";
+  status!.textContent = `LET · Law ${decision.lawRef} · ${decision.reason}`;
+  matchMessage!.textContent = "LET · Replay the rally";
+  nextRallyButton.disabled = true;
+  updateServeReadout();
+  if (wasServe && servingSide === "opponent") makeServe("opponent");
 }
 function awardPoint(winner: MatchSide, reason: string) {
   if (pointResolved || matchScore.winner) return;
@@ -721,16 +747,21 @@ function render() {
     if(!replacedFlight && elapsed>=flightResult.durationSeconds) {
       playing=false;
       if (!pointResolved) {
-        if (activeSource === "player") {
-          const validOpponentLanding = flightResult.end === "ground" && !!flightResult.landing && flightResult.landing.z * playerEndSign < 0;
-          if (validOpponentLanding) {
-            awardPoint("player", flightWasServe ? "AI failed to receive the serve" : aiReturnAttempted ? "AI could not reach the shuttle" : "AI failed to return");
-          } else {
-            awardPoint("opponent", flightResult.end === "net" ? "Your shot hit the net" : "Your shot landed out");
-          }
+        const hitter = activeSource === "player" ? "A" : "B";
+        const landingSide = flightResult.landing
+          ? (flightResult.landing.z * playerEndSign > 0 ? "A" : "B")
+          : undefined;
+        const event = adjudicateFlightOutcome({
+          hitter,
+          end: flightResult.end,
+          landingSide,
+          receiverFailedToReturn: flightResult.end === "ground",
+        });
+        if (event) {
+          applyRallyDecision(adjudicateRallyEvent(event));
         } else {
-          const validPlayerLanding = flightResult.end === "ground" && !!flightResult.landing && flightResult.landing.z * playerEndSign > 0;
-          awardPoint(validPlayerLanding ? "opponent" : "player", validPlayerLanding ? (flightWasServe ? "You failed to receive the serve" : "You did not return the shuttle") : "AI return was a fault");
+          status!.textContent = "FLIGHT UNRESOLVED · NO AUTOMATIC POINT";
+          opponentReadout!.textContent = "The flight exceeded the simulation limit; replay or reset the rally.";
         }
       }
     }
