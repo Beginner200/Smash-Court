@@ -15,6 +15,7 @@ import { advanceMatchBreak, createMatchBreak, type MatchBreakState } from "./rul
 import { adjudicateRallyEvent } from "./rules/rally-adjudication.js";
 import { adjudicateFlightOutcome } from "./rules/flight-adjudication.js";
 import { adjudicateServiceEvaluation } from "./rules/service-adjudication.js";
+import { detectConsecutiveContact, type RacketContact } from "./rules/contact-adjudication.js";
 import "./style.css";
 
 const mount = document.querySelector<HTMLDivElement>("#scene");
@@ -313,6 +314,16 @@ function updateBreakHud() {
     ? "Official 60-second interval. The next rally unlocks when the countdown ends."
     : "Official 120-second interval. Players change ends between games; the next rally unlocks when the countdown ends.";
 }
+let lastRacketContact: RacketContact | null = null;
+function registerRacketContact(contact: RacketContact): boolean {
+  const fault = detectConsecutiveContact(lastRacketContact, contact);
+  if (fault) {
+    applyRallyDecision(adjudicateRallyEvent(fault));
+    return false;
+  }
+  lastRacketContact = contact;
+  return true;
+}
 function applyRallyDecision(decision: ReturnType<typeof adjudicateRallyEvent>) {
   if (umpireCallReadout) {
     const label = decision.kind === "POINT" ? `POINT · Law ${decision.lawRef}` : decision.kind === "FAULT" ? `FAULT · Law ${decision.lawRef}` : `LET · Law ${decision.lawRef}`;
@@ -383,6 +394,7 @@ function awardPoint(winner: MatchSide, reason: string) {
   }
 }
 function newMatch() {
+  lastRacketContact = null;
   matchScore = createMatchScore();
   matchBreak = null;
   midGameBreakUsed = false;
@@ -483,6 +495,7 @@ function makeShot(type: ShotType = "clear") {
     );
   }
 
+  if (!registerRacketContact({ side: "A", actor: "human" })) return;
   const contact = assessShotContact(player.position, launchPosition, practiceAssist!.checked ? 2.25 : undefined);
   const localShot = createShotState(type, toLocalPosition(launchPosition));
   const initial = toWorldShuttle(localShot);
@@ -500,6 +513,10 @@ function makeShot(type: ShotType = "clear") {
 function makeServe(server: ServingSide) {
   if (playing || pointResolved || rallyStarted || matchScore.winner || server !== servingSide) return;
   const serverScore = matchScore.points[server];
+  lastRacketContact = null;
+  const servingActor = isDoublesMode() ? doublesServer(server) : server === "player" ? "human" : "opponent1";
+  const serveSide = server === "player" ? "A" : "B";
+  if (!registerRacketContact({ side: serveSide, actor: servingActor })) return;
   const localServe = createServeState(server, serverScore);
   const initial = toWorldShuttle(localServe);
   const mode: MatchMode = modeSelect!.value === "doubles" ? "doubles" : "singles";
@@ -522,6 +539,8 @@ function makeServe(server: ServingSide) {
   updateServeReadout();
 }
 function makeAiReturn() {
+  const actor = aiContactPlayer === opponentPartner ? "opponent2" : "opponent1";
+  if (!registerRacketContact({ side: "B", actor })) return;
   const difficulty = difficultySelect!.value;
   const worldContact = { x: aiContactPlayer.position.x, y: 1.55, z: aiContactPlayer.position.z + playerEndSign * 0.35 };
   const contactPosition = toLocalPosition(worldContact);
@@ -698,6 +717,7 @@ function render() {
           if (sample.position.z * playerEndSign > 0.35 && canPlayerHitShuttle(playerPartner.position, incoming, 0.98)) {
             const localIncoming = toLocalPosition(incoming);
             const localVelocity = { ...sample.velocity, z: sample.velocity.z * playerEndSign };
+            if (!registerRacketContact({ side: "A", actor: "partner" })) { replacedFlight = true; continue; }
             const partnerShotType = chooseDoublesPartnerShot(localIncoming, localVelocity, partnerShotIndex++);
             const partnerShot = toWorldShuttle(createDoublesPartnerReturnState(localIncoming, partnerShotType));
             partnerSwingTimer = 0.34;
