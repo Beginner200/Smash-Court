@@ -633,7 +633,7 @@ function render() {
         candidate.position.y >= 0.75 &&
         candidate.position.y <= 2.35 &&
         candidate.velocity.y < -0.2 &&
-        candidate.velocity.z * playerEndSign < 0,
+        candidate.velocity.z * playerEndSign > 0,
       );
       if (interceptSample) {
         const interceptPoint = new THREE.Vector3(
