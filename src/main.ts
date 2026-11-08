@@ -754,7 +754,7 @@ function render() {
         const event = adjudicateFlightOutcome({
           hitter,
           end: flightResult.end,
-          landingSide,
+          ...(landingSide ? { landingSide } : {}),
           receiverFailedToReturn: flightResult.end === "ground",
         });
         if (event) {
