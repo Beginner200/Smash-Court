@@ -669,13 +669,18 @@ function render() {
         );
         const partnerDistance = Math.hypot(playerPartner.position.x - interceptPoint.x, playerPartner.position.z - interceptPoint.z);
         const humanDistance = Math.hypot(player.position.x - interceptPoint.x, player.position.z - interceptPoint.z);
-        // The nearer teammate takes responsibility; the other stays in support.
-        const partnerShouldTake = partnerDistance <= humanDistance + 0.35;
+        // The human is the primary receiver. The AI partner only steps in
+        // when clearly closer and the human would otherwise be badly out of position.
+        // This prevents the teammate from playing the entire rally automatically.
+        const partnerShouldTake =
+          elapsed >= 0.18 &&
+          partnerDistance <= 1.45 &&
+          humanDistance >= partnerDistance + 0.9;
         if (partnerShouldTake) {
           const dx = interceptPoint.x - playerPartner.position.x;
           const dz = interceptPoint.z - playerPartner.position.z;
           const distance = Math.hypot(dx, dz);
-          const speed = 7.2;
+          const speed = 4.6;
           const travel = Math.min(distance, speed * Math.max(delta, 0));
           if (distance > 0.035) {
             playerPartner.position.x += dx / distance * travel;
@@ -684,7 +689,7 @@ function render() {
             playerPartner.rotation.y = Math.atan2(dx, dz);
           }
           const incoming = { x: sample.position.x, y: sample.position.y, z: sample.position.z };
-          if (sample.position.z * playerEndSign > 0.35 && canPlayerHitShuttle(playerPartner.position, incoming, 1.38)) {
+          if (sample.position.z * playerEndSign > 0.35 && canPlayerHitShuttle(playerPartner.position, incoming, 0.98)) {
             const localIncoming = toLocalPosition(incoming);
             const localVelocity = { ...sample.velocity, z: sample.velocity.z * playerEndSign };
             const partnerShotType = chooseDoublesPartnerShot(localIncoming, localVelocity, partnerShotIndex++);
@@ -708,7 +713,7 @@ function render() {
           const sz = supportZ - playerPartner.position.z;
           const sd = Math.hypot(sx, sz);
           if (sd > 0.04) {
-            const step = Math.min(sd, 5.2 * Math.max(delta, 0));
+            const step = Math.min(sd, 3.8 * Math.max(delta, 0));
             playerPartner.position.x += sx / sd * step;
             playerPartner.position.z += sz / sd * step;
             partnerMoveTimer = 0.18;
@@ -722,9 +727,11 @@ function render() {
       const activeOpponent = isDoublesMode() && opponentPartner.position.distanceTo(target) < opponent.position.distanceTo(target) ? opponentPartner : opponent;
       aiContactPlayer = activeOpponent;
       const distance = activeOpponent.position.distanceTo(target);
-      const aiSpeed = difficulty === "easy" ? 6 : difficulty === "hard" ? 12 : 9;
-      const aiReach = difficulty === "easy" ? 1.55 : difficulty === "hard" ? 1.05 : 1.35;
-      const reactionRatio = difficulty === "easy" ? 0.9 : difficulty === "hard" ? 0.72 : 0.82;
+      // Keep opponent movement human-readable and beatable: they react later,
+      // cover less racket distance, and cannot teleport across the doubles court.
+      const aiSpeed = difficulty === "easy" ? 3.8 : difficulty === "hard" ? 6.2 : 5.0;
+      const aiReach = difficulty === "easy" ? 0.78 : difficulty === "hard" ? 1.02 : 0.9;
+      const reactionRatio = difficulty === "easy" ? 0.98 : difficulty === "hard" ? 0.88 : 0.93;
       const step = aiSpeed * Math.max(delta,0);
       if(distance > 0.04) {
         activeOpponent.position.lerp(target,Math.min(1,step/distance));
