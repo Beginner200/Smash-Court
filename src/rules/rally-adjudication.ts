@@ -5,18 +5,22 @@ export type RallyFaultCode =
   | "shuttle-out"
   | "shuttle-fails-net"
   | "shuttle-touches-ceiling-or-wall"
+  | "shuttle-touches-object-outside-court"
+  | "racket-contact-not-toward-opponent"
   | "shuttle-touches-player"
   | "shuttle-caught-or-slung"
   | "double-hit"
   | "partner-double-hit"
   | "player-touches-net"
   | "court-invasion"
+  | "under-net-obstruction"
   | "obstruction"
-  | "deliberate-distraction";
+  | "deliberate-distraction"
+  | "misconduct";
 
 export type RallyEvent =
   | { kind: "fault"; against: SideId; code: RallyFaultCode }
-  | { kind: "let"; lawRef: "14.2.1" | "14.2.2" | "14.2.3"; reason: string }
+  | { kind: "let"; lawRef: "14.2.1" | "14.2.2" | "14.2.3" | "14.2.4" | "14.2.5" | "14.2.6" | "14.2.7"; reason: string }
   | { kind: "rally-won"; winner: SideId };
 
 const FAULTS: Record<RallyFaultCode, { lawRef: string; reason: string }> = {
@@ -40,7 +44,7 @@ const FAULTS: Record<RallyFaultCode, { lawRef: string; reason: string }> = {
     lawRef: "13.1.5",
     reason: "The shuttle touched the player or the player's dress.",
   },
-  "shuttle-caught-or-slung": {
+  "shuttle-touches-object-outside-court": {\n    lawRef: "13.3.5",\n    reason: "The shuttle touched another object or person outside the court.",\n  },\n  "racket-contact-not-toward-opponent": {\n    lawRef: "13.3.9",\n    reason: "The shuttle touched the racket but did not travel towards the opponent’s court.",\n  },\n  "shuttle-caught-or-slung": {
     lawRef: "13.1.7",
     reason: "The shuttle was caught and held on the racket, then slung during the stroke.",
   },
@@ -60,7 +64,7 @@ const FAULTS: Record<RallyFaultCode, { lawRef: string; reason: string }> = {
     lawRef: "13.1.12",
     reason: "The player invaded the opponent's court over the net in a way that obstructed or distracted the opponent.",
   },
-  obstruction: {
+  "under-net-obstruction": {\n    lawRef: "13.4.3",\n    reason: "The player invaded the opponent’s court under the net and obstructed or distracted the opponent.",\n  },\n  misconduct: {\n    lawRef: "13.5",\n    reason: "The player committed a flagrant, repeated, or persistent offence under Law 16.",\n  },\n  obstruction: {
     lawRef: "13.1.13",
     reason: "The player obstructed an opponent.",
   },
