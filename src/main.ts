@@ -717,18 +717,19 @@ function render() {
           if (sample.position.z * playerEndSign > 0.35 && canPlayerHitShuttle(playerPartner.position, incoming, 0.98)) {
             const localIncoming = toLocalPosition(incoming);
             const localVelocity = { ...sample.velocity, z: sample.velocity.z * playerEndSign };
-            if (!registerRacketContact({ side: "A", actor: "partner" })) { replacedFlight = true; continue; }
-            const partnerShotType = chooseDoublesPartnerShot(localIncoming, localVelocity, partnerShotIndex++);
-            const partnerShot = toWorldShuttle(createDoublesPartnerReturnState(localIncoming, partnerShotType));
-            partnerSwingTimer = 0.34;
-            contactReadout!.textContent = `AI PARTNER · ${partnerShotType.toUpperCase()}`;
-            opponentReadout!.textContent = `Your partner chose a ${partnerShotType} based on the incoming shuttle.`;
-            startFlight(
-              partnerShot,
-              `AI PARTNER ${partnerShotType.toUpperCase()}`,
-              `Your AI teammate selected a ${partnerShotType} and aimed for a controlled landing.`,
-              "player",
-            );
+            if (registerRacketContact({ side: "A", actor: "partner" })) {
+              const partnerShotType = chooseDoublesPartnerShot(localIncoming, localVelocity, partnerShotIndex++);
+              const partnerShot = toWorldShuttle(createDoublesPartnerReturnState(localIncoming, partnerShotType));
+              partnerSwingTimer = 0.34;
+              contactReadout!.textContent = `AI PARTNER · ${partnerShotType.toUpperCase()}`;
+              opponentReadout!.textContent = `Your partner chose a ${partnerShotType} based on the incoming shuttle.`;
+              startFlight(
+                partnerShot,
+                `AI PARTNER ${partnerShotType.toUpperCase()}`,
+                `Your AI teammate selected a ${partnerShotType} and aimed for a controlled landing.`,
+                "player",
+              );
+            }
             replacedFlight = true;
           }
         } else {
