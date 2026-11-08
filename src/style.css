@@ -72,3 +72,24 @@ button:hover{filter:brightness(1.1);transform:translateY(-1px)}button:focus-visi
 .interval-panel p{margin:4px 0 0;color:#c5b995;font-size:11px;line-height:1.4}
 .interval-panel>span{flex:none;color:#fff0bd;font-size:20px;font-weight:700;font-variant-numeric:tabular-nums}
 @media(max-width:640px){.interval-panel{padding:10px 12px}.interval-panel>span{font-size:17px}.interval-panel p{max-width:205px}}
+
+
+.umpire-panel {
+  margin: 0 0 14px;
+  padding: 12px 15px;
+  border: 1px solid rgba(129, 190, 164, 0.28);
+  border-radius: 12px;
+  background: rgba(11, 31, 25, 0.82);
+}
+.umpire-panel strong {
+  display: block;
+  color: #9bd8ba;
+  font-size: 0.72rem;
+  letter-spacing: 0.12em;
+}
+.umpire-panel p {
+  margin: 5px 0 0;
+  color: #e5eee9;
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
