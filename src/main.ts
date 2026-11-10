@@ -803,3 +803,81 @@ function render() {
   renderer.render(scene,camera);
 }
 render();
+
+
+/**
+ * Opt-in browser automation bridge.
+ * It is only exposed when the page is opened with ?smashTester=1.
+ * Actions call the same functions used by the visible game controls.
+ */
+if (new URLSearchParams(window.location.search).get("smashTester") === "1") {
+  const positionOf = (actor: THREE.Group) => ({
+    x: Number(actor.position.x.toFixed(3)),
+    y: Number(actor.position.y.toFixed(3)),
+    z: Number(actor.position.z.toFixed(3)),
+  });
+  const testBridge = {
+    version: "1.0.0",
+    getState: () => ({
+      mode: modeSelect!.value,
+      difficulty: difficultySelect!.value,
+      rallyState,
+      playing,
+      flightSource,
+      servingSide,
+      score: { player: matchScore.points.player, opponent: matchScore.points.opponent },
+      games: { player: matchScore.games.player, opponent: matchScore.games.opponent },
+      winner: matchScore.winner ?? null,
+      pointResolved,
+      rallyStarted,
+      serveInProgress,
+      status: status!.textContent ?? "",
+      umpireCall: umpireCallReadout?.textContent ?? "",
+      player: positionOf(player),
+      playerPartner: positionOf(playerPartner),
+      opponent: positionOf(opponent),
+      opponentPartner: positionOf(opponentPartner),
+      shuttle: {
+        visible: shuttle.visible,
+        position: positionOf(shuttle),
+      },
+      ai: {
+        opponentReadout: opponentReadout!.textContent ?? "",
+        contactReadout: contactReadout!.textContent ?? "",
+        target: aiTarget ? { x: aiTarget.x, y: aiTarget.y, z: aiTarget.z } : null,
+        returnAttempted: aiReturnAttempted,
+        rallyIndex: aiRallyIndex,
+      },
+      controls: {
+        launchDisabled: launchButton!.disabled,
+        nextRallyDisabled: nextRallyButton.disabled,
+      },
+    }),
+    actions: {
+      serve: (side: "player" | "opponent" = "player") => makeServe(side),
+      shot: (type: ShotType) => {
+        if (!(type in SHOT_PROFILES)) throw new Error("Unsupported shot type.");
+        makeShot(type);
+      },
+      move: (direction: "left" | "right" | "forward" | "back") => moveInDirection(direction),
+      setMode: (mode: "singles" | "doubles") => {
+        modeSelect!.value = mode;
+        modeSelect!.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+      setDifficulty: (difficulty: "easy" | "normal" | "hard") => {
+        difficultySelect!.value = difficulty;
+        difficultySelect!.dispatchEvent(new Event("change", { bubbles: true }));
+      },
+      nextRally: () => nextRallyButton.click(),
+      reset: () => resetButton.click(),
+      newMatch: () => newMatchButton.click(),
+    },
+  };
+  Object.defineProperty(window, "__SMASH_COURT_TEST__", {
+    value: testBridge,
+    configurable: false,
+    enumerable: false,
+    writable: false,
+  });
+  console.info("[Smash Court Tester] gameplay bridge v1 ready");
+}
